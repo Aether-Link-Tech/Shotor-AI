@@ -15,7 +15,9 @@ function today() {
 
 /* ---------------------------- report summaries ---------------------------- */
 
-const CHUNK_CHARS = 7000; // about 2k tokens, leaves room for instructions and output in a 4k context
+// About 2.5k tokens: still leaves room for instructions and a 600-token answer in a 4k context.
+// Bigger parts mean fewer splits, and each split loses detail with a small model.
+const CHUNK_CHARS = 9000;
 
 export function splitIntoChunks(text: string, size = CHUNK_CHARS): string[] {
   const clean = text.replace(/\r/g, '').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
@@ -50,9 +52,9 @@ const EXEC_FORMAT = `Write for a busy CEO. Use exactly this format, short bullet
 - bullets (omit if none)
 
 **Decisions / actions needed**
-- who should do what (omit if none)
+- every decision the report asks for, with its cost and deadline; then who should do what (omit if none)
 
-Keep it under 220 words.`;
+Keep it under 250 words. Use only facts stated in the text.`;
 
 export type Progress = (p: { step: string; done: number; total: number; partial?: string }) => void;
 
@@ -78,10 +80,12 @@ export async function summarizeReport(title: string, text: string, onProgress?: 
         system,
         {
           role: 'user',
-          content: `This is part ${i + 1} of ${chunks.length} of the report "${title}". Extract the key facts, figures, risks, decisions and action items as terse bullets (max 120 words).\n\n<document>\n${chunks[i]}\n</document>`,
+          content:
+            `This is part ${i + 1} of ${chunks.length} of the report "${title}". Write terse notes (max 170 words) under these labels, copying every number, date, name and amount exactly:\n` +
+            `FACTS:\nFIGURES:\nRISKS:\nDECISIONS REQUESTED: (list every one, with cost/deadline)\nACTIONS:\nWrite "none" for an empty label. Do not add anything that is not in the text.\n\n<document>\n${chunks[i]}\n</document>`,
         },
       ],
-      { maxTokens: 260, temperature: 0.2 },
+      { maxTokens: 360, temperature: 0.1 },
     );
     notes.push(`Part ${i + 1}:\n${n}`);
   }
@@ -94,7 +98,7 @@ export async function summarizeReport(title: string, text: string, onProgress?: 
       const group = combined.slice(i, i + 4).join('\n\n');
       grouped.push(
         await generate(
-          [system, { role: 'user', content: `Merge these notes into terse bullets (max 150 words), keeping all figures and action items.\n\n<data>\n${group}\n</data>` }],
+          [system, { role: 'user', content: `Merge these notes into one set of notes with the same labels (max 200 words). Keep every number, date, decision and action exactly; drop only repetition.\n\n<data>\n${group}\n</data>` }],
           { maxTokens: 300, temperature: 0.2 },
         ),
       );
@@ -104,7 +108,7 @@ export async function summarizeReport(title: string, text: string, onProgress?: 
 
   onProgress?.({ step: 'Writing the summary', done: total - 1, total });
   return generate(
-    [system, { role: 'user', content: `Here are notes from every part of the report "${title}". Write the final summary.\n\n${EXEC_FORMAT}\n\n<data>\n${combined.join('\n\n')}\n</data>` }],
+    [system, { role: 'user', content: `Here are notes from every part of the report "${title}". Write the final summary using ONLY facts in these notes — never add advice or facts of your own. Include every item listed under DECISIONS REQUESTED, and keep the key figures.\n\n${EXEC_FORMAT}\n\n<data>\n${combined.join('\n\n')}\n</data>` }],
     { maxTokens: 600, onToken: (t) => onProgress?.({ step: 'Writing the summary', done: total - 1, total, partial: t }) },
   );
 }

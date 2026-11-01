@@ -6,6 +6,7 @@ on:
 jobs:
   apk:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     env:
       # Optional repo secrets. Without them the APK is signed with a debug key (testing only).
       KEYSTORE_BASE64: ${{ secrets.SHOTOR_KEYSTORE_BASE64 }}
@@ -22,7 +23,7 @@ jobs:
           cache-dependency-path: mobile/package-lock.json
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: "17" }
-      - uses: android-actions/setup-android@v3
+      # GitHub's ubuntu runners ship with the Android SDK and NDK (ANDROID_HOME is preset).
       - name: Install dependencies
         run: npm ci
       - name: Fetch llama.rn native libraries (npm may skip its postinstall)
