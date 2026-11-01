@@ -171,7 +171,15 @@ export async function draftEmailReply(email: EmailForReply, instructions: string
       {
         role: 'user',
         content:
-          `Write a reply to this email.${instructions.trim() ? ` The user's instructions: ${instructions.trim()}` : ''}\n` +
+          `Write a reply to this email.` +
+          (instructions.trim()
+            ? `\nThe user's instructions (the reply MUST state each point clearly and exactly, including any day, time, number or yes/no position — do not soften or replace them):\n${instructions
+                .split(/[;\n]+/)
+                .map((p) => p.trim())
+                .filter(Boolean)
+                .map((p) => `- ${p}`)
+                .join('\n')}\n`
+            : '\n') +
           `Return only the reply body (no subject line)${name ? `, signed "${name}"` : ''}.\n\n` +
           `<email>\nFrom: ${email.fromName} <${email.fromAddr}>\nSubject: ${email.subject}\n\n${email.body.slice(0, 6000)}\n</email>`,
       },
@@ -203,9 +211,9 @@ export async function writeDailyBrief(data: { meetings: string; emails: string; 
         role: 'user',
         content:
           `Write ${name ? name + "'s" : 'the'} daily brief for ${today()} using only the data below.\n` +
-          `Format:\n**Today in one line:** ...\n\n**Meetings**\n- time – title (location)\n\n**Email**\n- what needs attention\n\n**Reports**\n- the one key takeaway per report\n\n**Top 3 priorities**\n1. ...\n\n` +
-          `Omit any section that has no data. Max 180 words.\n\n` +
-          `<data name="meetings">\n${data.meetings || 'none'}\n</data>\n<data name="emails">\n${data.emails || 'none'}\n</data>\n` +
+          `Format:\n**Today in one line:** ...\n\n**Meetings**\n- time – title (location)\n\n**Email**\n- what needs attention\n\n**Reports**\n- one short sentence per report: its single most important takeaway\n\n**Top 3 priorities**\n1. ...\n\n` +
+          `Omit any section that has no data. Everything in the meetings data happens today — never call it another day. Max 180 words.\n\n` +
+          `<data name="meetings (all of these are TODAY, ${today()})">\n${data.meetings || 'none'}\n</data>\n<data name="emails">\n${data.emails || 'none'}\n</data>\n` +
           `<data name="reports">\n${data.reports || 'none'}\n</data>\n<data name="outbox">\n${data.outbox || 'empty'}\n</data>`,
       },
     ],
