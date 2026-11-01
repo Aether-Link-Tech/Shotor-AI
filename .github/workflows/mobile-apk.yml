@@ -1,0 +1,48 @@
+name: Mobile app (Android APK)
+on:
+  workflow_dispatch:
+  push:
+    paths: ["mobile/**", ".github/workflows/mobile-apk.yml"]
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    env:
+      # Optional repo secrets. Without them the APK is signed with a debug key (testing only).
+      KEYSTORE_BASE64: ${{ secrets.SHOTOR_KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.SHOTOR_KEYSTORE_PASSWORD }}
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17" }
+      - uses: android-actions/setup-android@v3
+      - name: Install dependencies
+        run: npm ci
+      - name: Fetch llama.rn native libraries (npm may skip its postinstall)
+        run: node node_modules/llama.rn/install/download-native-artifacts.js
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Restore release signing key
+        if: ${{ env.KEYSTORE_BASE64 != '' }}
+        run: |
+          mkdir -p credentials
+          echo "$KEYSTORE_BASE64" | base64 -d > credentials/shotor-release.jks
+          printf "storeFile=shotor-release.jks\nstorePassword=%s\nkeyAlias=shotor\nkeyPassword=%s\n" "$KEYSTORE_PASSWORD" "$KEYSTORE_PASSWORD" > credentials/keystore.properties
+      - name: Build APK
+        env:
+          GOOGLE_IOS_CLIENT_ID: ${{ secrets.GOOGLE_IOS_CLIENT_ID }}
+          NODE_ENV: production
+        run: |
+          npx expo prebuild --platform android --clean --no-install
+          cd android && ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ShotorAI-release-apk
+          path: mobile/android/app/build/outputs/apk/release/app-release.apk

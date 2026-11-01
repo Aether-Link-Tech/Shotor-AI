@@ -1,0 +1,17 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "adhoc": {
+      "distribution": "internal",
+      "ios": { "resourceClass": "m-medium" },
+      "android": { "buildType": "apk" }
+    },
+    "testflight": {
+      "distribution": "store",
+      "ios": { "resourceClass": "m-medium" }
+    }
+  }
+}
