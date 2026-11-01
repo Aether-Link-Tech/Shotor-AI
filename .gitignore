@@ -20,3 +20,7 @@ android/local.properties
 keystore.properties
 .idea/
 .DS_Store
+
+# Built app files for delivery (not source)
+/release
+*.apk
