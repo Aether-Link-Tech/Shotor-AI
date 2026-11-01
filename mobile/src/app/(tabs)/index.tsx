@@ -42,6 +42,8 @@ export default function Today() {
     const ok = await calendarPermission(false);
     setCalAllowed(ok);
     setMeetings(ok ? await todaysMeetings() : []);
+    // Keep reminders in step with the calendar whenever Today is shown (meetings may have been added since).
+    if (ok) scheduleMeetingReminders().catch(() => {});
   }, []);
 
   useFocusEffect(
