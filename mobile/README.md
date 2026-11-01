@@ -54,12 +54,12 @@ cd android
 # → android/app/build/outputs/apk/release/app-release.apk
 ```
 **Building on Windows: read this first**
-- **Path length:** the C++ build creates very deep paths and fails with *"Filename longer than 260 characters"* when the project or Android SDK lives in a long folder. Map short drive letters before building, and run every command from them:
+- **Easiest:** let GitHub build it. Every push to `main` that touches `mobile/` runs the **Mobile app (Android APK)** workflow on Linux, which has no path limit, and attaches `app-release.apk` to the run. Open the repo → Actions → the latest run → *Artifacts*.
+- **Local builds need Windows long paths.** React Native codegen (screens, svg, gesture-handler, reanimated) creates C++ object paths of over 330 characters, and the build fails with *"Filename longer than 260 characters"* no matter how short the project folder is. Enable long paths once, as administrator, and reboot:
   ```bat
-  subst P: C:\path\to\Shotor-AI\mobile
-  subst S: C:\path\to\android-tools
+  reg add HKLM\SYSTEM\CurrentControlSet\Control\FileSystem /v LongPathsEnabled /t REG_DWORD /d 1 /f
   ```
-  Here `S:` holds `android-sdk` and `jdk17`, so set `ANDROID_HOME=S:\android-sdk` and `JAVA_HOME=S:\jdk17`. Run `npx expo prebuild --clean` from `P:\` after mapping, so the generated paths are short too.
+  Then use a newer CMake, whose Ninja supports long paths. Install it with `sdkmanager "cmake;3.31.6"` and add `android.cmakeVersion=3.31.6` to `android/gradle.properties`. Alternatively, build inside WSL (Linux).
 - **llama.rn compiles from source:** the version in use forces a source build, about 1,000 C++ files per CPU variant. Build only three variants (the app falls back automatically on other CPUs):
   `-PrnllamaVariants=rnllama,rnllama_v8_2_dotprod,rnllama_v8_2_dotprod_i8mm`
 - An unstable internet connection causes *"No such host is known"* during the first build. Re-run the build; Gradle keeps what it already downloaded.

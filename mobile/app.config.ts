@@ -66,7 +66,7 @@ const config: ExpoConfig = {
     [
       'expo-build-properties',
       {
-        android: { minSdkVersion: 26, enableMinifyInReleaseBuilds: false, enableShrinkResourcesInReleaseBuilds: false },
+        android: { minSdkVersion: 26, enableMinifyInReleaseBuilds: false, enableShrinkResourcesInReleaseBuilds: false, useLegacyPackaging: true },
       },
     ],
   ],
