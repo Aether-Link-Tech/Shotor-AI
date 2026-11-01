@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { PDFJS_MAIN, PDFJS_WORKER } from '../lib/docs/pdfjs.generated';
@@ -75,7 +75,6 @@ const HTML = (main: string, worker: string) => `<!doctype html><html><head><meta
 </script></body></html>`;
 
 export function PdfHost() {
-  const ref = useRef<WebView>(null);
   const html = useMemo(() => HTML(PDFJS_MAIN, PDFJS_WORKER), []);
 
   const onMessage = (e: WebViewMessageEvent) => {
@@ -86,7 +85,6 @@ export function PdfHost() {
       return;
     }
     if (msg.ready) {
-      webview = ref.current;
       ready = true;
       const w = readyWaiters;
       readyWaiters = [];
@@ -109,9 +107,8 @@ export function PdfHost() {
   return (
     <View style={styles.hidden} pointerEvents="none">
       <WebView
-        ref={(r) => {
-          (ref as React.MutableRefObject<WebView | null>).current = r;
-          webview = r;
+        ref={(r: unknown) => {
+          webview = r as WebView | null;
         }}
         source={{ html, baseUrl: 'https://shotor.local/' }}
         originWhitelist={['*']}

@@ -1,8 +1,9 @@
+import type { ColorValue } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
-type P = { size?: number; color: string };
+type P = { size?: number; color: ColorValue };
 const base = (size: number) => ({ width: size, height: size, viewBox: '0 0 24 24', fill: 'none' as const });
-const s = (color: string) => ({ stroke: color, strokeWidth: 1.9, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const });
+const s = (color: ColorValue) => ({ stroke: color, strokeWidth: 1.9, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const });
 
 export const HomeIcon = ({ size = 24, color }: P) => (
   <Svg {...base(size)}><Path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" {...s(color)} /></Svg>
