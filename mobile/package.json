@@ -1,7 +1,7 @@
 {
-  "name": "mobile",
+  "name": "shotor-ai",
   "version": "1.0.0",
-  "main": "index.ts",
+  "main": "expo-router/entry",
   "dependencies": {
     "@react-native-community/netinfo": "12.0.1",
     "expo": "~58.0.22",
@@ -40,10 +40,14 @@
     "typescript": "~6.0.3"
   },
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "start": "expo start --dev-client",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "typecheck": "tsc --noEmit",
+    "gen:pdfjs": "node scripts/gen-pdfjs.mjs",
+    "gen:icons": "node scripts/gen-icons.mjs",
+    "prebuild": "expo prebuild --clean",
+    "build:apk": "expo prebuild --platform android --clean && cd android && gradlew assembleRelease"
   },
   "private": true
 }
