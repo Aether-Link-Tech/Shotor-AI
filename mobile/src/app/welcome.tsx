@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as LocalAuthentication from 'expo-local-authentication';
 import NetInfo from '@react-native-community/netinfo';
@@ -86,6 +87,7 @@ export default function Welcome() {
 
   return (
     <SafeAreaView style={styles.root}>
+      <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.hero}>
           <LogoMark size={84} color={colors.white} letterColor={colors.navyDeep} />

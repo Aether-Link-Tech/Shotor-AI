@@ -36,8 +36,8 @@ const config: ExpoConfig = {
       foregroundImage: './assets/android-icon-foreground.png',
       monochromeImage: './assets/android-icon-monochrome.png',
     },
-    permissions: ['READ_CALENDAR', 'POST_NOTIFICATIONS', 'USE_BIOMETRIC', 'RECEIVE_BOOT_COMPLETED', 'ACCESS_NETWORK_STATE'],
-    blockedPermissions: ['RECORD_AUDIO', 'WRITE_CALENDAR', 'READ_EXTERNAL_STORAGE', 'WRITE_EXTERNAL_STORAGE', 'SYSTEM_ALERT_WINDOW'],
+    permissions: ['READ_CALENDAR', 'WRITE_CALENDAR', 'POST_NOTIFICATIONS', 'USE_BIOMETRIC', 'RECEIVE_BOOT_COMPLETED', 'ACCESS_NETWORK_STATE'],
+    blockedPermissions: ['RECORD_AUDIO', 'READ_EXTERNAL_STORAGE', 'WRITE_EXTERNAL_STORAGE', 'SYSTEM_ALERT_WINDOW'],
     predictiveBackGestureEnabled: false,
   },
   plugins: [
