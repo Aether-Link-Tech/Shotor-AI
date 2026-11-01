@@ -49,9 +49,21 @@ node node_modules/llama.rn/install/download-native-artifacts.js
 cd mobile
 npx expo prebuild --platform android --clean
 cd android
-./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a      # Windows: gradlew.bat ...
+./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a \
+  -PrnllamaVariants=rnllama,rnllama_v8_2_dotprod,rnllama_v8_2_dotprod_i8mm      # Windows: gradlew.bat ...
 # → android/app/build/outputs/apk/release/app-release.apk
 ```
+**Building on Windows: read this first**
+- **Path length:** the C++ build creates very deep paths and fails with *"Filename longer than 260 characters"* when the project or Android SDK lives in a long folder. Map short drive letters before building, and run every command from them:
+  ```bat
+  subst P: C:\path\to\Shotor-AI\mobile
+  subst S: C:\path\to\android-tools
+  ```
+  Here `S:` holds `android-sdk` and `jdk17`, so set `ANDROID_HOME=S:\android-sdk` and `JAVA_HOME=S:\jdk17`. Run `npx expo prebuild --clean` from `P:\` after mapping, so the generated paths are short too.
+- **llama.rn compiles from source:** the version in use forces a source build, about 1,000 C++ files per CPU variant. Build only three variants (the app falls back automatically on other CPUs):
+  `-PrnllamaVariants=rnllama,rnllama_v8_2_dotprod,rnllama_v8_2_dotprod_i8mm`
+- An unstable internet connection causes *"No such host is known"* during the first build. Re-run the build; Gradle keeps what it already downloaded.
+
 Send `app-release.apk` by link, email, WhatsApp or USB. On the phone: open it, allow **Install unknown apps** for that app once, then tap Install.
 
 ### Release signing (important for updates)

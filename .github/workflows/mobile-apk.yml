@@ -41,7 +41,7 @@ jobs:
           NODE_ENV: production
         run: |
           npx expo prebuild --platform android --clean --no-install
-          cd android && ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
+          cd android && ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a -PrnllamaVariants=rnllama,rnllama_v8_2_dotprod,rnllama_v8_2_dotprod_i8mm
       - uses: actions/upload-artifact@v4
         with:
           name: ShotorAI-release-apk
