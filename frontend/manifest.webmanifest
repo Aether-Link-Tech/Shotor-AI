@@ -1,0 +1,10 @@
+{
+  "name": "Shotor AI Assistant",
+  "short_name": "Shotor",
+  "description": "Your personal AI workspace",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#10131c",
+  "theme_color": "#10131c",
+  "icons": []
+}

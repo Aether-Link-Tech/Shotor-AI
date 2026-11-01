@@ -1,0 +1,23 @@
+package com.shotor.ai.data.api
+
+data class UserDto(val id: String, val email: String, val full_name: String = "")
+data class AuthRequest(val email: String, val password: String, val full_name: String? = null)
+data class TokenDto(val access_token: String, val token_type: String, val expires_in: Int, val user: UserDto)
+data class DocumentDto(val id: String, val original_filename: String, val content_type: String, val summary: String?, val created_at: String)
+data class DocumentListDto(val documents: List<DocumentDto> = emptyList())
+data class SummaryDto(val document_id: String, val summary: String, val model: String)
+data class AssistantRequest(val message: String)
+data class AssistantDto(val answer: String, val model: String)
+data class GoogleStatusDto(val connected: Boolean, val google_email: String? = null, val scopes: List<String> = emptyList())
+data class GoogleConnectDto(val authorization_url: String)
+data class GmailMessageDto(val id: String, val thread_id: String = "", val from: String = "", val to: String = "", val subject: String = "", val date: String = "", val snippet: String = "", val body: String? = null)
+data class GmailListDto(val messages: List<GmailMessageDto> = emptyList())
+data class ReplyDraftRequest(val message_id: String, val instructions: String)
+data class EmailDraftDto(val draft_id: String, val recipient: String, val subject: String, val body: String, val expires_at: String)
+data class SendEmailRequest(val draft_id: String, val recipient: String, val subject: String, val body: String, val confirm_send: Boolean)
+data class SendEmailDto(val sent: Boolean, val message_id: String? = null)
+data class CalendarEventDto(val id: String, val summary: String, val start: String, val end: String, val location: String? = null, val html_link: String? = null)
+data class CalendarListDto(val events: List<CalendarEventDto> = emptyList())
+data class ApiErrorDto(val detail: String? = null)
+
+data class AccountDeleteRequest(val password: String)

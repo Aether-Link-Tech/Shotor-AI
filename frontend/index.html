@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0B1D36">
+  <title>Shotor AI Assistant</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232167F5'/%3E%3Ctext x='16' y='23' font-size='20' font-weight='900' text-anchor='middle' fill='white' font-family='sans-serif'%3ES%3C/text%3E%3C/svg%3E">
+
+  <!-- Tailwind Play CDN: fine for development. For production, build a static CSS file instead. -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    if (window.tailwind) tailwind.config = {
+      theme: { extend: {
+        colors: { brand: "#2167F5", navy: "#0B1D36", canvas: "#F5F8FD" },
+        boxShadow: { soft: "0 4px 20px rgba(20, 45, 90, .07)" }
+      } }
+    };
+  </script>
+
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+    .hidden { display: none; }           /* same as Tailwind's, so the UI still works if the CDN is unreachable */
+    .page { display: none; }
+    .page.active { display: block; }
+    .nav-link.active { color: white; background: #164DAE; }
+    .message { white-space: pre-wrap; overflow-wrap: anywhere; }
+    #sidebar { transition: transform .25s ease; }
+    @media (max-width: 1023px) {
+      #sidebar { transform: translateX(0); }
+      #sidebar.closed { transform: translateX(-100%); }
+    }
+    /* Dark theme (toggled with the "dark" class on <html>) */
+    html.dark body { background: #0b1220; color: #e2e8f0; }
+    html.dark .bg-white { background-color: #111b2e !important; }
+    html.dark header.bg-white\/90, html.dark header { background-color: rgba(11,18,32,.9) !important; }
+    html.dark .bg-slate-100, html.dark .hover\:bg-slate-50:hover, html.dark .hover\:bg-slate-100:hover { background-color: #1a2640 !important; }
+    html.dark .bg-blue-50, html.dark .bg-sky-50, html.dark .bg-emerald-50, html.dark .bg-rose-50 { background-color: #14264a !important; }
+    html.dark .border-slate-200, html.dark .border-slate-100, html.dark .border-blue-200 { border-color: #243049 !important; }
+    html.dark .text-slate-800, html.dark .text-slate-700, html.dark .text-slate-600 { color: #e2e8f0 !important; }
+    html.dark .text-slate-500, html.dark .text-slate-400 { color: #94a3b8 !important; }
+    html.dark input, html.dark textarea { background-color: #0e1830; color: #e2e8f0; }
+    html.dark footer { border-color: #243049; }
+  </style>
+</head>
+
+<body class="bg-canvas text-slate-800 min-h-screen">
+
+<!-- ================= AUTHENTICATION ================= -->
+<section id="authScreen" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950">
+  <div class="w-full max-w-5xl bg-white rounded-3xl shadow-2xl overflow-hidden grid md:grid-cols-2">
+
+    <div class="hidden md:flex flex-col justify-between p-10 text-white bg-gradient-to-br from-navy to-blue-900">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-2xl bg-brand flex items-center justify-center text-2xl font-black">S</div>
+        <div>
+          <div class="text-2xl font-bold">Shotor</div>
+          <div class="text-xs text-blue-200">AI ASSISTANT</div>
+        </div>
+      </div>
+      <div>
+        <p class="text-blue-300 font-semibold text-sm tracking-widest mb-4">YOUR SMART WORKSPACE</p>
+        <h1 class="text-5xl font-bold leading-tight">Think clearly.<br><span class="text-blue-300">Work smarter.</span></h1>
+        <p class="text-slate-300 mt-6 leading-7">Chat with AI, summarize documents, organize your schedule, and bring your work together in one place.</p>
+      </div>
+      <p class="text-sm text-slate-400">Shotor AI Assistant · Your everyday companion</p>
+    </div>
+
+    <div class="p-7 sm:p-10 lg:p-14">
+      <div class="flex items-center gap-3 mb-9 md:hidden">
+        <div class="w-10 h-10 rounded-xl bg-brand text-white grid place-items-center font-bold text-xl">S</div>
+        <span class="text-xl font-bold">Shotor <span class="text-brand">AI</span></span>
+      </div>
+
+      <h2 id="authTitle" class="text-3xl font-bold">Welcome back</h2>
+      <p id="authSubtitle" class="text-slate-500 mt-2">Sign in to continue to your workspace.</p>
+
+      <div class="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-xl mt-7 mb-6">
+        <button type="button" id="loginTab" class="py-2.5 rounded-lg bg-white shadow-sm font-semibold">Sign in</button>
+        <button type="button" id="registerTab" class="py-2.5 rounded-lg text-slate-500 font-semibold">Create account</button>
+      </div>
+
+      <form id="authForm" class="space-y-4" novalidate>
+        <label id="nameField" class="hidden block text-sm font-semibold">
+          Full name
+          <input id="fullName" type="text" autocomplete="name" maxlength="120"
+            class="mt-2 w-full border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-200" placeholder="Your full name">
+        </label>
+        <label class="block text-sm font-semibold">
+          Email address
+          <input id="email" type="email" required autocomplete="email"
+            class="mt-2 w-full border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-200" placeholder="you@example.com">
+        </label>
+        <label class="block text-sm font-semibold">
+          Password
+          <input id="password" type="password" required autocomplete="current-password" maxlength="128"
+            class="mt-2 w-full border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-200" placeholder="Enter your password">
+          <span id="passwordHint" class="hidden block text-xs font-normal text-slate-500 mt-1">Use at least 12 characters.</span>
+        </label>
+
+        <p id="authMessage" class="text-sm text-red-600" role="status"></p>
+
+        <button id="authSubmit" type="submit" class="w-full bg-brand hover:bg-blue-700 text-white font-semibold py-3.5 rounded-xl transition">Sign in →</button>
+      </form>
+
+      <p class="text-xs text-slate-400 text-center mt-7">By continuing, you agree to your organization's applicable terms and privacy policy.</p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ================= MAIN APPLICATION ================= -->
+<div id="app" class="hidden min-h-screen">
+
+  <div id="overlay" class="hidden fixed inset-0 bg-slate-950/50 z-30 lg:hidden"></div>
+
+  <aside id="sidebar" class="closed fixed inset-y-0 left-0 z-40 w-72 bg-navy text-white flex flex-col lg:translate-x-0 lg:transform-none">
+    <div class="px-6 py-5 border-b border-white/10 flex items-center gap-3">
+      <div class="w-10 h-10 bg-brand rounded-xl grid place-items-center text-xl font-black">S</div>
+      <div class="flex-1">
+        <div class="text-lg font-bold">Shotor</div>
+        <div class="text-[10px] tracking-widest text-blue-300">AI ASSISTANT</div>
+      </div>
+      <button type="button" id="menuClose" class="lg:hidden text-slate-300" aria-label="Close menu">✕</button>
+    </div>
+
+    <div class="p-4">
+      <button type="button" id="newChatBtn" class="w-full border border-white/20 hover:bg-white/10 rounded-xl py-3 font-semibold text-left px-4">＋ &nbsp; New chat</button>
+    </div>
+
+    <p class="px-6 pt-3 pb-2 text-[10px] tracking-[.2em] font-bold text-slate-500">WORKSPACE</p>
+    <nav class="px-3 space-y-1">
+      <button type="button" data-page="chat" class="nav-link active w-full rounded-xl px-4 py-3 text-left">▣ &nbsp; Chat</button>
+      <button type="button" data-page="documents" class="nav-link w-full rounded-xl px-4 py-3 text-left text-slate-300 hover:bg-white/10">▤ &nbsp; Documents</button>
+      <button type="button" data-page="calendar" class="nav-link w-full rounded-xl px-4 py-3 text-left text-slate-300 hover:bg-white/10">▦ &nbsp; Calendar</button>
+      <button type="button" data-page="gmail" class="nav-link w-full rounded-xl px-4 py-3 text-left text-slate-300 hover:bg-white/10">✉ &nbsp; Gmail</button>
+      <button type="button" data-page="settings" class="nav-link w-full rounded-xl px-4 py-3 text-left text-slate-300 hover:bg-white/10">⚙ &nbsp; Settings</button>
+    </nav>
+
+    <div class="mt-auto p-4">
+      <div class="bg-white/5 border border-white/10 rounded-xl p-3 mb-4 text-sm">
+        <div class="flex items-center gap-2">
+          <span id="serverDot" class="w-2 h-2 rounded-full bg-amber-400"></span>
+          <span>Server status</span>
+          <span id="serverStatus" class="ml-auto text-xs text-slate-400">Checking</span>
+        </div>
+        <div class="flex items-center gap-2 mt-2">
+          <span id="aiDot" class="w-2 h-2 rounded-full bg-amber-400"></span>
+          <span>Local AI</span>
+          <span id="aiStatus" class="ml-auto text-xs text-slate-400 truncate" title="">Checking</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <div id="userAvatar" class="w-10 h-10 rounded-full bg-blue-500/30 text-blue-200 grid place-items-center font-bold">U</div>
+        <div class="min-w-0 flex-1">
+          <div id="userName" class="font-semibold text-sm truncate">Shotor User</div>
+          <div id="userEmail" class="text-xs text-slate-400 truncate"></div>
+        </div>
+        <button type="button" id="logoutBtn" title="Sign out" aria-label="Sign out">↗</button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="lg:ml-72 min-h-screen flex flex-col">
+    <header class="sticky top-0 z-20 h-[72px] px-4 sm:px-7 flex items-center gap-4 bg-white/90 backdrop-blur border-b border-slate-200">
+      <button type="button" id="menuBtn" class="lg:hidden w-10 h-10 rounded-lg hover:bg-slate-100" aria-label="Open menu">☰</button>
+      <div>
+        <p class="text-[10px] text-slate-400 tracking-widest font-bold">YOUR WORKSPACE</p>
+        <h2 id="pageTitle" class="font-bold">Chat</h2>
+      </div>
+      <div class="ml-auto hidden sm:flex items-center gap-2 text-xs text-slate-500 border rounded-full px-3 py-2">
+        <span class="text-green-500">●</span> Private workspace
+      </div>
+      <button type="button" id="themeBtn" class="w-10 h-10 border border-slate-200 rounded-xl hover:bg-slate-50" title="Toggle theme" aria-label="Toggle theme">◐</button>
+    </header>
+
+    <div class="max-w-7xl w-full mx-auto flex-1 p-4 sm:p-7 lg:p-9">
+
+      <!-- CHAT -->
+      <section id="page-chat" class="page active">
+        <div id="welcome">
+          <div class="inline-flex items-center gap-2 bg-blue-50 text-blue-700 rounded-full px-3 py-2 text-xs font-bold tracking-widest">
+            <span class="w-2 h-2 bg-green-500 rounded-full"></span> READY TO HELP
+          </div>
+          <h1 class="text-3xl sm:text-4xl font-bold tracking-tight mt-5 leading-tight">Hello, there 👋<br><span class="text-brand">What can I help you with?</span></h1>
+          <p class="text-slate-500 mt-3 leading-7 max-w-2xl">Ask questions, explore ideas, summarize documents, and get your work organized.</p>
+
+          <div class="grid sm:grid-cols-2 xl:grid-cols-4 gap-3 mt-7 mb-7">
+            <button type="button" data-suggest="Help me plan my day" class="bg-white border border-slate-200 rounded-xl p-4 text-left hover:border-blue-300 hover:shadow-soft transition">
+              <div class="w-10 h-10 bg-blue-50 text-brand rounded-full grid place-items-center text-xl">◉</div>
+              <h3 class="font-bold mt-3">Chat with AI</h3><p class="text-xs text-slate-500 mt-1">Get instant answers</p>
+            </button>
+            <button type="button" data-goto="documents" class="bg-white border border-slate-200 rounded-xl p-4 text-left hover:border-blue-300 hover:shadow-soft transition">
+              <div class="w-10 h-10 bg-sky-50 text-sky-600 rounded-full grid place-items-center text-xl">▤</div>
+              <h3 class="font-bold mt-3">Summarize documents</h3><p class="text-xs text-slate-500 mt-1">Upload and get insights</p>
+            </button>
+            <button type="button" data-goto="calendar" class="bg-white border border-slate-200 rounded-xl p-4 text-left hover:border-blue-300 hover:shadow-soft transition">
+              <div class="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-full grid place-items-center text-xl">▦</div>
+              <h3 class="font-bold mt-3">Manage calendar</h3><p class="text-xs text-slate-500 mt-1">See your upcoming events</p>
+            </button>
+            <button type="button" data-goto="gmail" class="bg-white border border-slate-200 rounded-xl p-4 text-left hover:border-blue-300 hover:shadow-soft transition">
+              <div class="w-10 h-10 bg-rose-50 text-rose-600 rounded-full grid place-items-center text-xl">✉</div>
+              <h3 class="font-bold mt-3">Connect Gmail</h3><p class="text-xs text-slate-500 mt-1">Draft replies with AI</p>
+            </button>
+          </div>
+        </div>
+
+        <div id="chatMessages" class="space-y-5 mb-5"></div>
+
+        <form id="chatForm" class="bg-white border border-slate-200 shadow-soft rounded-2xl p-3 sticky bottom-3">
+          <textarea id="messageInput" rows="2" maxlength="6000" placeholder="Type your message here… (Enter to send, Shift+Enter for a new line)"
+            class="w-full resize-y min-h-[52px] max-h-40 outline-none p-2 bg-transparent"></textarea>
+          <div class="flex justify-between items-center mt-2">
+            <span class="text-xs text-slate-400">AI can make mistakes. Verify important information.</span>
+            <button id="sendButton" type="submit" class="bg-brand text-white rounded-xl px-5 py-2.5 font-semibold hover:bg-blue-700 disabled:opacity-60">Send ↑</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- DOCUMENTS -->
+      <section id="page-documents" class="page">
+        <div class="mb-7">
+          <p class="text-xs tracking-widest font-bold text-brand">YOUR KNOWLEDGE SPACE</p>
+          <h1 class="text-3xl font-bold mt-2">Documents<span class="text-brand">.</span></h1>
+          <p class="text-slate-500 mt-2">Upload a PDF, DOCX, TXT, MD, CSV or JSON file (up to 10 MB) and get an AI summary.</p>
+        </div>
+
+        <div id="dropzone" class="bg-white border-2 border-dashed border-blue-200 rounded-2xl p-8 sm:p-12 text-center">
+          <div class="w-14 h-14 mx-auto bg-blue-50 text-brand rounded-2xl grid place-items-center text-3xl">↑</div>
+          <h2 class="font-bold text-lg mt-4">Drag and drop your file here</h2>
+          <p class="text-sm text-slate-500 mt-2">Or click below to browse your computer.</p>
+          <input id="fileInput" type="file" accept=".pdf,.txt,.md,.docx,.csv,.json" class="hidden">
+          <button type="button" id="uploadBtn" class="bg-brand text-white rounded-xl px-5 py-3 mt-5 font-semibold">Upload document</button>
+        </div>
+
+        <p id="documentMessage" class="text-sm mt-3" role="status"></p>
+
+        <div class="flex items-center justify-between mt-8 mb-3">
+          <h2 class="text-lg font-bold">Uploaded documents</h2>
+          <button type="button" id="refreshDocsBtn" class="text-brand text-sm font-semibold">↻ Refresh</button>
+        </div>
+        <div id="documentList" class="space-y-3"></div>
+
+        <div id="summaryPanel" class="hidden bg-white border border-slate-200 rounded-2xl p-5 sm:p-7 mt-5">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0"><p class="text-xs tracking-widest font-bold text-brand">SUMMARY</p><h3 id="summaryTitle" class="font-bold text-lg truncate"></h3></div>
+            <button type="button" id="summaryClose" class="text-slate-400 hover:text-slate-600" aria-label="Close summary">✕</button>
+          </div>
+          <div id="summaryBody" class="message mt-3 leading-7"></div>
+        </div>
+      </section>
+
+      <!-- CALENDAR -->
+      <section id="page-calendar" class="page">
+        <p class="text-xs tracking-widest font-bold text-brand">PLAN YOUR TIME</p>
+        <h1 class="text-3xl font-bold mt-2">Calendar<span class="text-brand">.</span></h1>
+        <p class="text-slate-500 mt-2 mb-7">Your Google Calendar events for the next 7 days.</p>
+
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div><h2 class="font-bold">Google Calendar</h2><p id="calendarStatus" class="text-sm text-slate-500 mt-1">Checking connection…</p></div>
+          <div class="flex gap-2">
+            <button type="button" id="refreshCalendarBtn" class="border border-slate-200 rounded-xl px-4 py-3 font-semibold">↻ Refresh</button>
+            <button type="button" id="connectCalendarBtn" class="bg-brand text-white rounded-xl px-4 py-3 font-semibold">Connect Google</button>
+          </div>
+        </div>
+        <p id="calendarMessage" class="text-sm mt-3 text-red-600" role="status"></p>
+        <div id="calendarList" class="space-y-3 mt-5"></div>
+      </section>
+
+      <!-- GMAIL -->
+      <section id="page-gmail" class="page">
+        <p class="text-xs tracking-widest font-bold text-brand">YOUR INBOX</p>
+        <h1 class="text-3xl font-bold mt-2">Gmail<span class="text-brand">.</span></h1>
+        <p class="text-slate-500 mt-2 mb-7">Read your latest messages and let the AI draft replies. Nothing is sent until you review and confirm.</p>
+
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div><h2 class="font-bold">Google account</h2><p id="gmailStatus" class="text-sm text-slate-500 mt-1">Checking connection…</p></div>
+          <div class="flex gap-2">
+            <button type="button" id="refreshGmailBtn" class="border border-slate-200 rounded-xl px-4 py-3 font-semibold">↻ Refresh</button>
+            <button type="button" id="connectGmailBtn" class="bg-brand text-white rounded-xl px-4 py-3 font-semibold">Connect Google</button>
+          </div>
+        </div>
+        <p id="gmailMessage" class="text-sm mt-3" role="status"></p>
+
+        <div id="emailPanel" class="hidden bg-white border border-slate-200 rounded-2xl p-5 sm:p-7 mt-5">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0"><h3 id="emailSubject" class="font-bold text-lg"></h3><p id="emailMeta" class="text-xs text-slate-500 mt-1 break-words"></p></div>
+            <button type="button" id="emailClose" class="text-slate-400 hover:text-slate-600" aria-label="Close message">✕</button>
+          </div>
+          <div id="emailBody" class="message mt-4 leading-7 text-sm max-h-80 overflow-y-auto border border-slate-100 rounded-xl p-4"></div>
+
+          <div class="mt-5 border-t border-slate-100 pt-5">
+            <label class="block text-sm font-semibold">Instructions for the AI
+              <input id="draftInstructions" type="text" maxlength="2000" value="Write a polite, concise reply."
+                class="mt-2 w-full border border-slate-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-blue-200">
+            </label>
+            <div class="flex items-center gap-3 mt-3">
+              <button type="button" id="draftBtn" class="bg-brand text-white rounded-xl px-4 py-2.5 font-semibold disabled:opacity-60">✨ Draft AI reply</button>
+              <span id="draftStatus" class="text-sm text-slate-500"></span>
+            </div>
+          </div>
+
+          <div id="draftEditor" class="hidden mt-5 border border-blue-200 bg-blue-50 rounded-xl p-4 space-y-3">
+            <p class="text-xs text-slate-500">Review and edit the draft. <strong>Nothing is sent until you press “Send email”.</strong> <span id="draftExpiry"></span></p>
+            <label class="block text-sm font-semibold">To <input id="draftTo" type="email" class="mt-1 w-full border border-slate-200 rounded-lg p-2.5 font-normal"></label>
+            <label class="block text-sm font-semibold">Subject <input id="draftSubject" type="text" maxlength="998" class="mt-1 w-full border border-slate-200 rounded-lg p-2.5 font-normal"></label>
+            <label class="block text-sm font-semibold">Message <textarea id="draftBody" rows="8" maxlength="10000" class="mt-1 w-full border border-slate-200 rounded-lg p-2.5 font-normal"></textarea></label>
+            <div class="flex gap-2">
+              <button type="button" id="sendDraftBtn" class="bg-emerald-600 text-white rounded-xl px-4 py-2.5 font-semibold disabled:opacity-60">Send email</button>
+              <button type="button" id="discardDraftBtn" class="border border-slate-200 bg-white rounded-xl px-4 py-2.5 font-semibold">Discard</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="gmailList" class="space-y-3 mt-5"></div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section id="page-settings" class="page">
+        <p class="text-xs tracking-widest font-bold text-brand">PREFERENCES</p>
+        <h1 class="text-3xl font-bold mt-2">Settings<span class="text-brand">.</span></h1>
+        <p class="text-slate-500 mt-2 mb-7">Manage your account and preferences.</p>
+
+        <div class="max-w-3xl bg-white border border-slate-200 rounded-2xl p-5 sm:p-7">
+          <h2 class="font-bold text-lg">Account</h2>
+          <div class="grid sm:grid-cols-2 gap-5 mt-5">
+            <div><p class="text-xs text-slate-500">Name</p><p id="settingsName" class="font-semibold mt-1">—</p></div>
+            <div><p class="text-xs text-slate-500">Email</p><p id="settingsEmail" class="font-semibold mt-1 break-all">—</p></div>
+          </div>
+          <hr class="my-6 border-slate-100">
+          <h2 class="font-bold">Google connection</h2>
+          <p id="settingsGoogle" class="text-sm text-slate-500 mt-1">Checking…</p>
+          <button type="button" id="settingsDisconnectBtn" class="hidden border border-slate-200 rounded-xl px-4 py-2.5 mt-3">Disconnect Google</button>
+          <hr class="my-6 border-slate-100">
+          <h2 class="font-bold">Appearance</h2>
+          <p class="text-sm text-slate-500 mt-1">Switch the workspace theme.</p>
+          <button type="button" id="settingsThemeBtn" class="border border-slate-200 rounded-xl px-4 py-2.5 mt-3">Toggle theme</button>
+          <hr class="my-6 border-slate-100">
+          <h2 class="font-bold">Session</h2>
+          <button type="button" id="settingsLogoutBtn" class="border border-red-200 text-red-600 rounded-xl px-4 py-2.5 mt-3">Sign out</button>
+          <hr class="my-6 border-slate-100">
+          <h2 class="font-bold text-red-600">Delete account</h2>
+          <p class="text-sm text-slate-500 mt-1">Permanently deletes your account, documents, drafts and Google connection.</p>
+          <button type="button" id="deleteToggleBtn" class="border border-red-200 text-red-600 rounded-xl px-4 py-2.5 mt-3">Delete my account…</button>
+          <div id="deleteForm" class="hidden mt-3 space-y-3">
+            <input id="deletePassword" type="password" autocomplete="current-password" placeholder="Confirm with your password" class="w-full border border-slate-200 rounded-xl p-3">
+            <p id="deleteMessage" class="text-sm text-red-600" role="status"></p>
+            <div class="flex gap-2">
+              <button type="button" id="deleteConfirmBtn" class="bg-red-600 text-white rounded-xl px-4 py-2.5 font-semibold disabled:opacity-60">Permanently delete</button>
+              <button type="button" id="deleteCancelBtn" class="border border-slate-200 rounded-xl px-4 py-2.5">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <footer class="border-t border-slate-200 px-5 sm:px-8 py-5 flex justify-between text-xs text-slate-400">
+      <span>✳ Shotor AI Assistant</span>
+      <span>Built for your workflow</span>
+    </footer>
+  </main>
+</div>
+
+<div id="toastHost" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

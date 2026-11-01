@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+set -eu
+GRADLE_VERSION=8.9
+GRADLE_HOME="${HOME}/.gradle/shot_or_bootstrap/gradle-${GRADLE_VERSION}"
+CACHE_DIR="${HOME}/.gradle/shot_or_bootstrap"
+ZIP_PATH="${CACHE_DIR}/gradle-${GRADLE_VERSION}-bin.zip"
+if [ ! -x "${GRADLE_HOME}/bin/gradle" ]; then
+  mkdir -p "${CACHE_DIR}"
+  echo "Downloading Gradle ${GRADLE_VERSION}; internet access is required on first run."
+  curl -fL "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip" -o "${ZIP_PATH}"
+  unzip -oq "${ZIP_PATH}" -d "${CACHE_DIR}"
+fi
+exec "${GRADLE_HOME}/bin/gradle" "$@"
