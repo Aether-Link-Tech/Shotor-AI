@@ -26,7 +26,7 @@ async function gmailFetch(path: string, init?: RequestInit) {
 
 type Part = { mimeType?: string; body?: { data?: string }; parts?: Part[]; headers?: { name: string; value: string }[] };
 
-function findBody(p: Part, mime: string): string | null {
+export function findBody(p: Part, mime: string): string | null {
   if (p.mimeType === mime && p.body?.data) return fromBase64Url(p.body.data);
   for (const c of p.parts ?? []) {
     const r = findBody(c, mime);
@@ -35,7 +35,7 @@ function findBody(p: Part, mime: string): string | null {
   return null;
 }
 
-function htmlToText(html: string) {
+export function htmlToText(html: string) {
   return html
     .replace(/<(style|script)[\s\S]*?<\/\1>/gi, '')
     .replace(/<br\s*\/?>/gi, '\n')
@@ -51,7 +51,7 @@ function htmlToText(html: string) {
     .trim();
 }
 
-function parseFrom(v: string) {
+export function parseFrom(v: string) {
   const m = v.match(/^\s*"?([^"<]*)"?\s*<([^>]+)>/);
   return m ? { name: m[1].trim() || m[2], addr: m[2].trim() } : { name: v.trim(), addr: v.trim() };
 }
@@ -107,7 +107,7 @@ function encodeHeader(v: string) {
   return /^[\x00-\x7F]*$/.test(v) ? v : `=?UTF-8?B?${bytesToBase64(utf8Encode(v))}?=`;
 }
 
-function buildMime(o: { to: string; subject: string; body: string; inReplyTo?: string | null; references?: string | null }) {
+export function buildMime(o: { to: string; subject: string; body: string; inReplyTo?: string | null; references?: string | null }) {
   const b64 = bytesToBase64(utf8Encode(o.body)).replace(/(.{76})/g, '$1\r\n');
   const lines = [
     `To: ${o.to}`,

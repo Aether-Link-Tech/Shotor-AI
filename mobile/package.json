@@ -38,7 +38,10 @@
   "devDependencies": {
     "@types/react": "~19.3.0",
     "pdfjs-dist": "^6.4.299",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "jest": "~30.5.2",
+    "jest-expo": "~58.0.13",
+    "@types/jest": "30.0.0"
   },
   "scripts": {
     "start": "expo start --dev-client",
@@ -48,7 +51,17 @@
     "gen:pdfjs": "node scripts/gen-pdfjs.mjs",
     "gen:icons": "node scripts/gen-icons.mjs",
     "prebuild": "expo prebuild --clean",
-    "build:apk": "expo prebuild --platform android --clean && cd android && gradlew assembleRelease"
+    "build:apk": "expo prebuild --platform android --clean && cd android && gradlew assembleRelease",
+    "test": "jest"
   },
-  "private": true
+  "private": true,
+  "jest": {
+    "preset": "jest-expo",
+    "testMatch": [
+      "**/__tests__/**/*.test.ts?(x)"
+    ],
+    "moduleNameMapper": {
+      "^llama.rn$": "<rootDir>/test/llamaMock.js"
+    }
+  }
 }
