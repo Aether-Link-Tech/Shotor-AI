@@ -62,6 +62,7 @@ const config: ExpoConfig = {
     // On-device AI (llama.cpp). Android runs on CPU, so OpenCL is not needed.
     ['llama.rn', { enableOpenCLAndHexagon: false }],
     './plugins/withReleaseSigning',
+    './plugins/withShortNativePaths',
     [
       'expo-build-properties',
       {
