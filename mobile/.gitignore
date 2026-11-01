@@ -46,3 +46,6 @@ yarn-error.*
 *.apk
 *.aab
 *.ipa
+
+# Release signing key and passwords — back these up somewhere safe, never commit them
+/credentials
