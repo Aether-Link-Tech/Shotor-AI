@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { Markdown } from '../../components/Markdown';
 import { LogoMark, Watermark } from '../../components/Brand';
@@ -71,25 +71,27 @@ export default function Chat() {
       <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
         <ModelBanner />
       </View>
+      {data.length === 0 ? (
+        // Rendered outside the inverted list: inverted lists flip their empty component on some
+        // Android versions, which showed this text mirrored.
+        <ScrollView contentContainerStyle={[styles.empty, { padding: 16 }]} keyboardShouldPersistTaps="handled">
+          <Text style={type.h2}>Ask anything</Text>
+          <Text style={[type.small, { textAlign: 'center' }]}>Answers are written on this phone using your meetings, recent email and report summaries. Nothing leaves the device.</Text>
+          <View style={styles.suggestions}>
+            {SUGGESTIONS.map((s) => (
+              <Pressable key={s} style={styles.chip} onPress={() => send(s)} disabled={!model}>
+                <Text style={styles.chipText}>{s}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </ScrollView>
+      ) : (
       <FlatList
         ref={listRef}
         inverted
         data={data}
         keyExtractor={(m) => String(m.id)}
-        contentContainerStyle={{ padding: 16, gap: 12, flexGrow: 1 }}
-        ListEmptyComponent={
-          <View style={[styles.empty, { transform: [{ scaleY: -1 }] }]}>
-            <Text style={type.h2}>Ask anything</Text>
-            <Text style={[type.small, { textAlign: 'center' }]}>Answers are written on this phone using your meetings, recent email and report summaries. Nothing leaves the device.</Text>
-            <View style={styles.suggestions}>
-              {SUGGESTIONS.map((s) => (
-                <Pressable key={s} style={styles.chip} onPress={() => send(s)} disabled={!model}>
-                  <Text style={styles.chipText}>{s}</Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        }
+        contentContainerStyle={{ padding: 16, gap: 12 }}
         renderItem={({ item }) =>
           item.role === 'user' ? (
             <View style={styles.userBubble}>
@@ -105,6 +107,7 @@ export default function Chat() {
           )
         }
       />
+      )}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <View style={styles.composer}>
         <TextInput
@@ -129,7 +132,7 @@ export default function Chat() {
 }
 
 const styles = StyleSheet.create({
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 30 },
+  empty: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 30 },
   suggestions: { gap: 8, marginTop: 10, alignSelf: 'stretch' },
   chip: { backgroundColor: colors.white, borderRadius: 12, padding: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
   chipText: { color: colors.navy, fontSize: 14 },
