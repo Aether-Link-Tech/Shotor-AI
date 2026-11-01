@@ -69,6 +69,7 @@ export default function RootLayout() {
         <Stack.Screen name="report/[id]" options={{ title: 'Report' }} />
         <Stack.Screen name="mail/[id]" options={{ title: 'Email' }} />
         <Stack.Screen name="model" options={{ title: 'AI model' }} />
+        <Stack.Screen name="welcome" options={{ headerShown: false, gestureEnabled: false }} />
       </Stack>
       <PdfHost />
       {locked ? <LockScreen onUnlock={() => setLocked(false)} /> : null}

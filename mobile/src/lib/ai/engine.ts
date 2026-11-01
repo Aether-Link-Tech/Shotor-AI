@@ -52,6 +52,9 @@ async function ensureLoaded(): Promise<Loaded> {
         n_ctx: N_CTX,
         n_batch: 512,
         use_mlock: false,
+        // Phone CPUs mix fast and slow cores; more threads than fast cores makes every token wait
+        // on the slowest thread. 4 matches the performance cores of current Android chips.
+        n_threads: Platform.OS === 'android' ? 4 : undefined,
         // Metal on iPhone is reliable; Android stays on CPU for broad device support.
         n_gpu_layers: Platform.OS === 'ios' ? 99 : 0,
       });

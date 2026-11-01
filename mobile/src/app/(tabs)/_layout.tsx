@@ -1,9 +1,12 @@
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
+import { getSetting } from '../../lib/db';
 import { HeaderTitle } from '../../components/Brand';
 import { ChatIcon, HomeIcon, MailIcon, ReportIcon, SettingsIcon } from '../../components/Icons';
 import { colors } from '../../theme';
 
 export default function TabLayout() {
+  // First launch: run the setup flow (name, permissions, AI model, app lock).
+  if (getSetting('onboarding.done') !== '1') return <Redirect href="/welcome" />;
   return (
     <Tabs
       screenOptions={{
