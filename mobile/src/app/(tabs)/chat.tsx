@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { Markdown } from '../../components/Markdown';
 import { LogoMark, Watermark } from '../../components/Brand';
@@ -66,7 +67,7 @@ export default function Chat() {
   const data: Msg[] = streaming !== null ? [{ id: -1, role: 'assistant', content: streaming || '…' }, ...messages] : messages;
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior="padding">
       {messages.length === 0 && streaming === null ? <Watermark /> : null}
       <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
         <ModelBanner />

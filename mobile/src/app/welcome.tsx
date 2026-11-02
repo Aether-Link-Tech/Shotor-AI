@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,7 +10,7 @@ import { FromAetherLink, LogoMark } from '../components/Brand';
 import { Button } from '../components/ui';
 import { getSetting, setSetting, useLive } from '../lib/db';
 import { calendarPermission } from '../lib/calendar';
-import { scheduleDailyBriefNotification, scheduleMeetingReminders, setupNotifications } from '../lib/notifications';
+import { exactRemindersAllowed, requestExactReminders, scheduleDailyBriefNotification, scheduleMeetingReminders, setupNotifications } from '../lib/notifications';
 import { MODELS, activeModel, downloadModel, formatBytes, importModelFromDevice, onDownload, type DownloadState } from '../lib/ai/models';
 import { colors } from '../theme';
 
@@ -38,6 +39,8 @@ export default function Welcome() {
     const notifications = await setupNotifications(true);
     setPerms({ calendar, notifications });
     if (notifications) {
+      // On-time reminders: normally granted automatically; otherwise Android opens its "Alarms & reminders" switch.
+      if (!(await exactRemindersAllowed())) await requestExactReminders();
       await scheduleMeetingReminders().catch(() => {});
       await scheduleDailyBriefNotification().catch(() => {});
     }
@@ -88,7 +91,7 @@ export default function Welcome() {
   return (
     <SafeAreaView style={styles.root}>
       <StatusBar style="light" />
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.hero}>
           <LogoMark size={84} color={colors.white} letterColor={colors.navyDeep} />
           <Text style={styles.title}>Welcome to Shotor AI</Text>
@@ -156,7 +159,7 @@ export default function Welcome() {
         <Button title="Start using Shotor" onPress={finish} variant="secondary" style={{ marginTop: 8 }} />
         <Text style={[styles.note, { textAlign: 'center' }]}>Gmail can be connected later from the Mail tab.</Text>
         <FromAetherLink light />
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

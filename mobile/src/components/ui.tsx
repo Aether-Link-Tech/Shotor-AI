@@ -2,13 +2,13 @@ import { ReactNode } from 'react';
 import {
   ActivityIndicator,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextStyle,
   View,
   ViewStyle,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { colors, radius, space, type } from '../theme';
 
 export function Card({ children, style }: { children: ReactNode; style?: ViewStyle | ViewStyle[] }) {
@@ -82,9 +82,10 @@ export function Pill({ label, tone = 'neutral' }: { label: string; tone?: 'neutr
 export function Screen({ children, scroll = true, padded = true }: { children: ReactNode; scroll?: boolean; padded?: boolean }) {
   if (!scroll) return <View style={[styles.screen, padded && styles.padded]}>{children}</View>;
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={[padded && styles.padded, { paddingBottom: 40 }]} keyboardShouldPersistTaps="handled">
+    // Keeps the focused text field above the keyboard (Android draws edge-to-edge, so the window no longer resizes).
+    <KeyboardAwareScrollView style={styles.screen} contentContainerStyle={[padded && styles.padded, { paddingBottom: 40 }]} keyboardShouldPersistTaps="handled" bottomOffset={24}>
       {children}
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 

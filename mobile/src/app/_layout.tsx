@@ -6,6 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { getSetting, migrate } from '../lib/db';
 import { setupNotifications, scheduleDailyBriefNotification } from '../lib/notifications';
 import { registerBackgroundSync, runSync, watchConnectivity } from '../lib/sync';
@@ -44,6 +45,7 @@ export default function RootLayout() {
     const tap = Notifications.addNotificationResponseReceivedListener((r) => {
       const data = r.notification.request.content.data as { kind?: string; url?: string } | undefined;
       if (data?.kind === 'brief') router.navigate('/');
+      else if (data?.kind === 'meeting' && data.url) router.push(data.url as never);
     });
     return () => {
       offNet();
@@ -54,6 +56,7 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
+      <KeyboardProvider>
       <StatusBar style={locked ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
@@ -68,11 +71,13 @@ export default function RootLayout() {
         <Stack.Screen name="report/new" options={{ title: 'New report' }} />
         <Stack.Screen name="report/[id]" options={{ title: 'Report' }} />
         <Stack.Screen name="mail/[id]" options={{ title: 'Email' }} />
+        <Stack.Screen name="meeting/[id]" options={{ title: 'Meeting' }} />
         <Stack.Screen name="model" options={{ title: 'AI model' }} />
         <Stack.Screen name="welcome" options={{ headerShown: false, gestureEnabled: false }} />
       </Stack>
       <PdfHost />
       {locked ? <LockScreen onUnlock={() => setLocked(false)} /> : null}
+      </KeyboardProvider>
     </SafeAreaProvider>
   );
 }

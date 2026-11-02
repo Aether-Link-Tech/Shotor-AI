@@ -81,6 +81,8 @@ export type GenerateOptions = {
   maxTokens?: number;
   temperature?: number;
   onToken?: (textSoFar: string) => void;
+  /** Constrain the output to JSON matching this schema (grammar-based, so it always parses). */
+  jsonSchema?: object;
 };
 
 export function generate(messages: ChatMessage[], opts: GenerateOptions = {}): Promise<string> {
@@ -99,6 +101,7 @@ export function generate(messages: ChatMessage[], opts: GenerateOptions = {}): P
           stop: STOP_WORDS,
           jinja: true,
           enable_thinking: info.disableThinking ? false : undefined,
+          response_format: opts.jsonSchema ? { type: 'json_schema', json_schema: { strict: true, schema: opts.jsonSchema } } : undefined,
         },
         (data) => {
           if (!opts.onToken) return;

@@ -95,7 +95,7 @@ export default function Today() {
         <ModelBanner />
 
         <Row style={{ gap: 10 }}>
-          <Stat label="Meetings" value={meetings?.length ?? '–'} onPress={() => {}} />
+          <Stat label="Meetings" value={meetings?.length ?? '–'} onPress={() => router.navigate('/calendar')} />
           <Stat label="Unread" value={stats.unread} onPress={() => router.navigate('/mail')} />
           <Stat label="To send" value={stats.waiting + stats.failed} tone={stats.failed ? 'danger' : undefined} onPress={() => router.navigate('/mail')} />
           <Stat label="Reports" value={stats.reports} onPress={() => router.navigate('/reports')} />
@@ -129,7 +129,15 @@ export default function Today() {
           {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
         </Card>
 
-        <SectionTitle>Today's meetings</SectionTitle>
+        <SectionTitle
+          right={
+            calAllowed ? (
+              <Button small variant="ghost" title="+ Add meeting" onPress={() => router.push({ pathname: '/meeting/[id]', params: { id: 'new' } })} />
+            ) : null
+          }
+        >
+          Today's meetings
+        </SectionTitle>
         {!calAllowed ? (
           <Card>
             <Text style={type.body}>Allow calendar access to see meetings and get reminders before each one.</Text>
@@ -144,14 +152,16 @@ export default function Today() {
             const live = m.start.getTime() <= now && m.end.getTime() > now;
             const past = m.end.getTime() <= now;
             return (
-              <Card key={m.id + m.start.toISOString()} style={past ? { opacity: 0.55 } : undefined}>
-                <Row style={{ justifyContent: 'space-between' }}>
-                  <Text style={styles.time}>{m.allDay ? 'All day' : `${formatTime(m.start)} – ${formatTime(m.end)}`}</Text>
-                  {live ? <Pill label="NOW" tone="success" /> : null}
-                </Row>
-                <Text style={type.h3}>{m.title}</Text>
-                {m.location ? <Text style={type.small}>{m.location}</Text> : null}
-              </Card>
+              <Pressable key={m.id + m.start.toISOString()} onPress={() => router.push({ pathname: '/meeting/[id]', params: { id: m.id } })}>
+                <Card style={past ? { opacity: 0.55 } : undefined}>
+                  <Row style={{ justifyContent: 'space-between' }}>
+                    <Text style={styles.time}>{m.allDay ? 'All day' : `${formatTime(m.start)} – ${formatTime(m.end)}`}</Text>
+                    {live ? <Pill label="NOW" tone="success" /> : null}
+                  </Row>
+                  <Text style={type.h3}>{m.title}</Text>
+                  {m.location ? <Text style={type.small}>{m.location}</Text> : null}
+                </Card>
+              </Pressable>
             );
           })
         )}
