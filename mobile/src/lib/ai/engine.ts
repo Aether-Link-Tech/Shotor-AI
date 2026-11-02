@@ -200,8 +200,9 @@ export function generate(messages: ChatMessage[], opts: GenerateOptions = {}): P
           penalty_repeat: 1.1,
           stop: STOP_WORDS,
           jinja: true,
-          enable_thinking: info.disableThinking ? false : undefined,
-          response_format: opts.jsonSchema ? { type: 'json_schema', json_schema: { strict: true, schema: opts.jsonSchema } } : undefined,
+          // Only pass optional fields when set: some engine builds reject keys whose value is undefined.
+          ...(info.disableThinking ? { enable_thinking: false } : {}),
+          ...(opts.jsonSchema ? { response_format: { type: 'json_schema' as const, json_schema: { strict: true, schema: opts.jsonSchema } } } : {}),
         },
         (data) => {
           if (!opts.onToken) return;

@@ -5,6 +5,7 @@
   "dependencies": {
     "@react-native-community/datetimepicker": "9.2.1",
     "@react-native-community/netinfo": "12.0.1",
+    "chrono-node": "^2.10.3",
     "expo": "~58.0.22",
     "expo-auth-session": "~58.0.16",
     "expo-background-task": "~58.0.12",
@@ -38,12 +39,12 @@
     "react-native-webview": "14.0.1"
   },
   "devDependencies": {
+    "@types/jest": "30.0.0",
     "@types/react": "~19.3.0",
-    "pdfjs-dist": "^6.4.299",
-    "typescript": "~6.0.3",
     "jest": "~30.5.2",
     "jest-expo": "~58.0.13",
-    "@types/jest": "30.0.0"
+    "pdfjs-dist": "^6.4.299",
+    "typescript": "~6.0.3"
   },
   "scripts": {
     "start": "expo start --dev-client",

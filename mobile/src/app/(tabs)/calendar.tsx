@@ -4,11 +4,10 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { router, useFocusEffect } from 'expo-router';
 import { Button, Card, Empty, Row, SectionTitle } from '../../components/ui';
 import { CalendarIcon, PlusIcon, SparkIcon } from '../../components/Icons';
-import { useEngine } from '../../components/ModelBanner';
 import { useLive } from '../../lib/db';
 import { calendarPermission, formatDay, formatTime, getMeetings, sameDay, startOfDay, type Meeting } from '../../lib/calendar';
 import { scheduleMeetingReminders, setupNotifications } from '../../lib/notifications';
-import { parseMeetingText } from '../../lib/ai/tasks';
+import { parseMeeting } from '../../lib/meetingParse';
 import { colors, radius, type } from '../../theme';
 
 // Week starts on Monday (business calendar).
@@ -27,13 +26,11 @@ function monthGrid(month: Date) {
 }
 
 export default function CalendarScreen() {
-  const { model } = useEngine();
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [selected, setSelected] = useState(() => startOfDay(new Date()));
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [allowed, setAllowed] = useState(true);
   const [quick, setQuick] = useState('');
-  const [parsing, setParsing] = useState(false);
   const [error, setError] = useState('');
   const version = useLive(['calendar'], () => Date.now());
 
@@ -72,26 +69,14 @@ export default function CalendarScreen() {
     load();
   }
 
-  async function quickAdd() {
+  function quickAdd() {
     const text = quick.trim();
     if (!text) return;
     setError('');
-    if (!model) {
-      // No AI installed: open the form with the text as the title.
-      setQuick('');
-      router.push({ pathname: '/meeting/[id]', params: { id: 'new', title: text, date: selected.toISOString() } });
-      return;
-    }
-    setParsing(true);
-    try {
-      const m = await parseMeetingText(text);
-      setQuick('');
-      router.push({ pathname: '/meeting/[id]', params: { id: 'new', title: m.title, start: m.start.toISOString(), end: m.end.toISOString(), location: m.location } });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setParsing(false);
-    }
+    // Parsed on the phone instantly (no AI model needed); the form opens for the user to check.
+    const m = parseMeeting(text, new Date(), { defaultDay: selected });
+    setQuick('');
+    router.push({ pathname: '/meeting/[id]', params: { id: 'new', title: m.title, start: m.start.toISOString(), end: m.end.toISOString(), location: m.location } });
   }
 
   if (!allowed) {
@@ -126,9 +111,8 @@ export default function CalendarScreen() {
             placeholderTextColor={colors.faint}
             onSubmitEditing={quickAdd}
             returnKeyType="done"
-            editable={!parsing}
           />
-          <Button small title={parsing ? 'Understanding…' : 'Add'} onPress={quickAdd} loading={parsing} disabled={!quick.trim()} />
+          <Button small title="Add" onPress={quickAdd} disabled={!quick.trim()} />
           {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
         </Card>
 
