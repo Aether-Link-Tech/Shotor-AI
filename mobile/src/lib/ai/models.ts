@@ -60,12 +60,12 @@ export const MODELS: ModelInfo[] = [
   },
   {
     id: 'llama-3.2-1b',
-    name: 'Llama 3.2 1B (light)',
+    name: 'Llama 3.2 1B (basic — older phones only)',
     file: 'Llama-3.2-1B-Instruct-Q4_K_M.gguf',
     url: 'https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf',
     sizeBytes: 807694464,
     ramGb: 3,
-    description: 'Fast and small. Simpler summaries. Works on older phones.',
+    description: 'Very small. In testing it sometimes invented figures in summaries — use only if the phone cannot run the larger models.',
   },
 ];
 
