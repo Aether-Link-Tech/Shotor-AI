@@ -59,8 +59,8 @@ const config: ExpoConfig = {
     ],
     ['expo-local-authentication', { faceIDPermission: 'Use Face ID to unlock Shotor AI.' }],
     ['expo-notifications', { color: NAVY, icon: './assets/notification-icon.png' }],
-    // On-device AI (llama.cpp). Android runs on CPU, so OpenCL is not needed.
-    ['llama.rn', { enableOpenCLAndHexagon: false }],
+    // On-device AI (llama.cpp). OpenCL lets Snapdragon (Adreno) phones use the GPU when the speed test finds it faster.
+    ['llama.rn', { enableOpenCLAndHexagon: true }],
     './plugins/withReleaseSigning',
     './plugins/withShortNativePaths',
     [

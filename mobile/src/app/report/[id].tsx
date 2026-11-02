@@ -1,44 +1,27 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Share, Text } from 'react-native';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Button, Card, Empty, Pill, Row, Screen, SectionTitle } from '../../components/ui';
 import { Markdown } from '../../components/Markdown';
 import { useEngine } from '../../components/ModelBanner';
 import { db, notify, useLive } from '../../lib/db';
-import { summarizeReport } from '../../lib/ai/tasks';
 import type { Report } from '../../lib/assistant';
+import { cancelReport, onPartial, partialSummary, resummarize as queueSummary, type ReportStatus } from '../../lib/jobs';
 import { colors, type } from '../../theme';
 
 export default function ReportDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { model } = useEngine();
-  const report = useLive(['reports'], () => db.getFirstSync<Report>('SELECT * FROM reports WHERE id = ?', Number(id)));
+  const report = useLive(['reports'], () =>
+    db.getFirstSync<Report & { status: ReportStatus; progress: string | null; error: string | null }>('SELECT * FROM reports WHERE id = ?', Number(id)),
+  );
   const [showOriginal, setShowOriginal] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState('');
-  const [partial, setPartial] = useState('');
-  const [error, setError] = useState('');
+  const [partial, setPartial] = useState(partialSummary(Number(id)));
+  useEffect(() => onPartial(() => setPartial(partialSummary(Number(id)))), [id]);
 
   if (!report) return <Empty title="Report not found" />;
-
-  async function resummarize() {
-    setBusy(true);
-    setError('');
-    setPartial('');
-    try {
-      const s = await summarizeReport(report!.title, report!.original_text, (p) => {
-        setStatus(p.total > 1 ? `${p.step} (${Math.min(p.done + 1, p.total)}/${p.total})` : p.step);
-        if (p.partial) setPartial(p.partial);
-      });
-      db.runSync('UPDATE reports SET summary = ? WHERE id = ?', s, report!.id);
-      notify('reports');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-      setPartial('');
-    }
-  }
+  const busy = report.status === 'queued' || report.status === 'running';
+  const error = report.status === 'error' ? report.error : null;
 
   function remove() {
     Alert.alert('Delete report?', 'The report and its summary will be removed from this phone.', [
@@ -67,7 +50,12 @@ export default function ReportDetail() {
       <SectionTitle>Summary</SectionTitle>
       <Card>
         {busy ? (
-          partial ? <Markdown text={partial} /> : <Text style={type.small}>{status || 'Working…'}</Text>
+          <>
+            <Text style={type.small}>{report.status === 'queued' ? 'Waiting for the previous report to finish…' : report.progress || 'Working…'}</Text>
+            {partial ? <Markdown text={partial} /> : null}
+            <Text style={type.tiny}>You can leave this screen — you’ll get a notification when it’s ready.</Text>
+            {report.status === 'queued' ? <Button small variant="ghost" title="Cancel" onPress={() => cancelReport(report.id)} /> : null}
+          </>
         ) : report.summary ? (
           <Markdown text={report.summary} />
         ) : (
@@ -80,7 +68,7 @@ export default function ReportDetail() {
         {report.summary ? (
           <Button small variant="secondary" title="Share summary" onPress={() => Share.share({ title: report.title, message: `${report.title}\n\n${report.summary!.replace(/\*\*/g, '')}` })} />
         ) : null}
-        <Button small variant="secondary" title={report.summary ? 'Summarize again' : 'Summarize'} onPress={resummarize} loading={busy} disabled={!model} />
+        <Button small variant="secondary" title={report.summary ? 'Summarize again' : 'Summarize'} onPress={() => queueSummary(report.id)} loading={busy} disabled={!model || busy} />
         <Button small variant="secondary" title="Ask about it" onPress={() => router.navigate({ pathname: '/chat', params: { q: `About the report "${report.title}": ` } })} />
       </Row>
 

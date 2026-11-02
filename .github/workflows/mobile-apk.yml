@@ -6,7 +6,7 @@ on:
 jobs:
   apk:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
     env:
       # Optional repo secrets. Without them the APK is signed with a debug key (testing only).
       KEYSTORE_BASE64: ${{ secrets.SHOTOR_KEYSTORE_BASE64 }}
@@ -42,7 +42,7 @@ jobs:
           NODE_ENV: production
         run: |
           npx expo prebuild --platform android --clean --no-install
-          cd android && ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a -PrnllamaVariants=rnllama,rnllama_v8_2_dotprod,rnllama_v8_2_dotprod_i8mm
+          cd android && ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
       - uses: actions/upload-artifact@v4
         with:
           name: ShotorAI-release-apk

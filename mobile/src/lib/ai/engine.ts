@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import { initLlama, type LlamaContext } from 'llama.rn';
 import { activeModel, type ModelInfo } from './models';
-import { notify } from '../db';
+import { getSetting, notify, setSetting } from '../db';
 
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
@@ -32,6 +32,33 @@ export function onEngineStatus(fn: (s: EngineStatus) => void) {
   };
 }
 
+/** Speed settings, tuned per phone by the speed test (Settings → AI speed). */
+export type SpeedConfig = { threads: number; gpu: boolean };
+export function speedConfig(): SpeedConfig {
+  return {
+    threads: Number(getSetting('ai.threads', Platform.OS === 'android' ? '4' : '0')) || 4,
+    // Metal on iPhone is always used; Android GPU (OpenCL on Snapdragon/Adreno) only if the speed test found it faster.
+    gpu: Platform.OS === 'ios' ? true : getSetting('ai.gpu', '0') === '1',
+  };
+}
+
+async function loadContext(path: string, cfg: SpeedConfig) {
+  return initLlama({
+    model: path,
+    n_ctx: N_CTX,
+    n_batch: 512,
+    n_ubatch: 512,
+    use_mlock: false,
+    // Phone CPUs mix fast and slow cores; more threads than fast cores makes every token wait on the slowest one.
+    n_threads: Platform.OS === 'android' ? cfg.threads : undefined,
+    n_gpu_layers: cfg.gpu ? 99 : 0,
+    flash_attn_type: 'auto',
+    // 8-bit attention cache: half the memory traffic of the default, with no visible quality change.
+    cache_type_k: 'q8_0',
+    cache_type_v: 'q8_0',
+  });
+}
+
 async function ensureLoaded(): Promise<Loaded> {
   const model = activeModel();
   if (!model) {
@@ -47,17 +74,7 @@ async function ensureLoaded(): Promise<Loaded> {
     }
     setStatus('loading');
     try {
-      const ctx = await initLlama({
-        model: model.path,
-        n_ctx: N_CTX,
-        n_batch: 512,
-        use_mlock: false,
-        // Phone CPUs mix fast and slow cores; more threads than fast cores makes every token wait
-        // on the slowest thread. 4 matches the performance cores of current Android chips.
-        n_threads: Platform.OS === 'android' ? 4 : undefined,
-        // Metal on iPhone is reliable; Android stays on CPU for broad device support.
-        n_gpu_layers: Platform.OS === 'ios' ? 99 : 0,
-      });
+      const ctx = await loadContext(model.path, speedConfig());
       loaded = { ctx, path: model.path, info: model.info };
       lastError = '';
       setStatus('ready');
@@ -72,6 +89,89 @@ async function ensureLoaded(): Promise<Loaded> {
     }
   })();
   return loading;
+}
+
+/* ------------------------------- speed test ------------------------------- */
+
+export type SpeedResult = {
+  threads: number;
+  gpu: boolean;
+  /** Tokens per second reading the document (prompt) and writing the answer. */
+  readTps: number;
+  writeTps: number;
+  /** CPU-optimised engine build that Android loaded (e.g. rnllama_jni_v8_2_dotprod). */
+  engine: string;
+  gpuNote: string;
+  /** Estimated seconds for a 600-word report summary. */
+  estimate600: number;
+};
+
+/** A 600-word report is about 900 tokens to read and ~350 tokens to write. */
+const estimate = (readTps: number, writeTps: number) => 900 / Math.max(readTps, 0.1) + 350 / Math.max(writeTps, 0.1);
+
+async function benchOnce(path: string, cfg: SpeedConfig): Promise<SpeedResult> {
+  const ctx = await loadContext(path, cfg);
+  try {
+    const b = await ctx.bench(256, 48, 1, 1);
+    return {
+      threads: cfg.threads,
+      gpu: cfg.gpu && ctx.gpu,
+      readTps: b.speedPp,
+      writeTps: b.speedTg,
+      engine: String(ctx.androidLib ?? (Platform.OS === 'ios' ? 'iOS (Metal)' : 'unknown')),
+      gpuNote: ctx.gpu ? 'GPU in use' : ctx.reasonNoGPU || 'CPU only',
+      estimate600: estimate(b.speedPp, b.speedTg),
+    };
+  } finally {
+    await ctx.release().catch(() => {});
+  }
+}
+
+/**
+ * Tries a few thread counts (and the GPU where available) on this phone, keeps the fastest
+ * and saves it. Takes about a minute; the model is reloaded with the winner afterwards.
+ */
+export async function runSpeedTest(onStep?: (msg: string) => void): Promise<{ best: SpeedResult; all: SpeedResult[] }> {
+  const model = activeModel();
+  if (!model) throw new Error('Install an AI model first.');
+  await unloadModel();
+  setStatus('busy');
+  const configs: SpeedConfig[] =
+    Platform.OS === 'android'
+      ? [{ threads: 4, gpu: false }, { threads: 6, gpu: false }, { threads: 2, gpu: false }, { threads: 4, gpu: true }]
+      : [{ threads: 0, gpu: true }];
+  const all: SpeedResult[] = [];
+  try {
+    for (const [i, cfg] of configs.entries()) {
+      onStep?.(`Testing ${i + 1} of ${configs.length}${cfg.gpu ? ' (graphics chip)' : ` (${cfg.threads} cores)`}…`);
+      try {
+        const r = await benchOnce(model.path, cfg);
+        if (cfg.gpu && !r.gpu && Platform.OS === 'android') continue; // GPU not available on this phone
+        all.push(r);
+      } catch {
+        // A configuration this phone cannot run (e.g. GPU driver problem) is simply skipped.
+      }
+    }
+    if (!all.length) throw new Error('The speed test could not run. The phone may be low on memory.');
+    const best = all.reduce((a, b) => (b.estimate600 < a.estimate600 ? b : a));
+    if (Platform.OS === 'android') {
+      setSetting('ai.threads', String(best.threads));
+      setSetting('ai.gpu', best.gpu ? '1' : '0');
+    }
+    setSetting('ai.speed', JSON.stringify(best));
+    return { best, all };
+  } finally {
+    setStatus('idle');
+  }
+}
+
+export function lastSpeedResult(): SpeedResult | null {
+  try {
+    const v = getSetting('ai.speed');
+    return v ? (JSON.parse(v) as SpeedResult) : null;
+  } catch {
+    return null;
+  }
 }
 
 /** One completion at a time: the model context is single-threaded. */

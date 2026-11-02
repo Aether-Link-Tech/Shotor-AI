@@ -64,6 +64,13 @@ const MIGRATIONS: string[] = [
     value TEXT NOT NULL
   );
   `,
+  // 2: summaries run as background jobs, so reports carry their own status and progress.
+  `
+  ALTER TABLE reports ADD COLUMN status TEXT NOT NULL DEFAULT 'done';  -- 'queued' | 'running' | 'done' | 'error'
+  ALTER TABLE reports ADD COLUMN progress TEXT;
+  ALTER TABLE reports ADD COLUMN error TEXT;
+  UPDATE reports SET status = 'error', error = 'Not summarized' WHERE summary IS NULL;
+  `,
 ];
 
 export function migrate() {

@@ -10,6 +10,7 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { getSetting, migrate } from '../lib/db';
 import { setupNotifications, scheduleDailyBriefNotification } from '../lib/notifications';
 import { registerBackgroundSync, runSync, watchConnectivity } from '../lib/sync';
+import { runQueue } from '../lib/jobs';
 import { PdfHost } from '../components/PdfHost';
 import { FromAetherLink, LogoMark } from '../components/Brand';
 import { Button } from '../components/ui';
@@ -32,6 +33,8 @@ export default function RootLayout() {
       await scheduleDailyBriefNotification().catch(() => {});
       await registerBackgroundSync().catch(() => {});
       runSync().catch(() => {});
+      // Continue any report summaries that were interrupted when the app was closed.
+      runQueue().catch(() => {});
     })();
     const offNet = watchConnectivity();
     const appState = AppState.addEventListener('change', (s) => {
@@ -45,7 +48,7 @@ export default function RootLayout() {
     const tap = Notifications.addNotificationResponseReceivedListener((r) => {
       const data = r.notification.request.content.data as { kind?: string; url?: string } | undefined;
       if (data?.kind === 'brief') router.navigate('/');
-      else if (data?.kind === 'meeting' && data.url) router.push(data.url as never);
+      else if ((data?.kind === 'meeting' || data?.kind === 'report') && data.url) router.push(data.url as never);
     });
     return () => {
       offNet();

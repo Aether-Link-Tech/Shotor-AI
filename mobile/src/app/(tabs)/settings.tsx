@@ -6,6 +6,7 @@ import Constants from 'expo-constants';
 import { Card, Row, Screen, SectionTitle } from '../../components/ui';
 import { FromAetherLink } from '../../components/Brand';
 import { useEngine } from '../../components/ModelBanner';
+import { SpeedCard } from '../../components/SpeedCard';
 import { db, getSetting, notify, setSetting, useLive } from '../../lib/db';
 import { reminderMinutes, setReminderMinutes } from '../../lib/calendar';
 import { scheduleDailyBriefNotification, scheduleMeetingReminders, setupNotifications } from '../../lib/notifications';
@@ -88,6 +89,8 @@ export default function Settings() {
           </Row>
         </Card>
       </Pressable>
+
+      <SpeedCard />
 
       <SectionTitle>Meeting reminders</SectionTitle>
       <Card>

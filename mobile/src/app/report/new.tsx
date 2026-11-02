@@ -2,12 +2,10 @@ import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { Button, Card, Row, Screen } from '../../components/ui';
-import { Markdown } from '../../components/Markdown';
 import { ModelBanner, useEngine } from '../../components/ModelBanner';
 import { ReportIcon } from '../../components/Icons';
 import { pickAndExtract, type ExtractedDoc } from '../../lib/docs/extract';
-import { summarizeReport, suggestTitle } from '../../lib/ai/tasks';
-import { db, notify } from '../../lib/db';
+import { addReport, titleFor } from '../../lib/jobs';
 import { colors, radius, type } from '../../theme';
 
 export default function NewReport() {
@@ -17,7 +15,6 @@ export default function NewReport() {
   const [pasted, setPasted] = useState('');
   const [title, setTitle] = useState('');
   const [status, setStatus] = useState('');
-  const [partial, setPartial] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -40,42 +37,13 @@ export default function NewReport() {
     }
   }
 
-  async function summarize() {
+  function summarize() {
     if (text.trim().length < 40) return setError('Add a bit more text to summarize.');
     setError('');
-    setBusy(true);
-    let id: number | null = null;
-    try {
-      let finalTitle = title.trim();
-      if (!finalTitle) {
-        setStatus('Choosing a title…');
-        finalTitle = await suggestTitle(text);
-        setTitle(finalTitle);
-      }
-      // Save first so nothing is lost if the phone is interrupted.
-      const r = db.runSync(
-        'INSERT INTO reports (title, source, original_text, created_at) VALUES (?, ?, ?, ?)',
-        finalTitle,
-        mode === 'paste' ? 'paste' : doc!.kind,
-        text,
-        Date.now(),
-      );
-      id = Number(r.lastInsertRowId);
-      notify('reports');
-      const summary = await summarizeReport(finalTitle, text, (p) => {
-        setStatus(p.total > 1 ? `${p.step} (${Math.min(p.done + 1, p.total)}/${p.total})` : p.step);
-        if (p.partial) setPartial(p.partial);
-      });
-      db.runSync('UPDATE reports SET summary = ? WHERE id = ?', summary, id);
-      notify('reports');
-      router.replace(`/report/${id}`);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-      if (id) setError((prev) => prev + ' The report was saved; you can summarize it again from the Reports list.');
-    } finally {
-      setBusy(false);
-      setStatus('');
-    }
+    // Queued as a background job: the user can leave this screen (or the app) while it runs.
+    const finalTitle = title.trim() || titleFor(text, mode === 'pick' ? doc?.name : undefined);
+    const id = addReport(finalTitle, mode === 'paste' ? 'paste' : doc!.kind, text);
+    router.replace(`/report/${id}`);
   }
 
   return (
@@ -126,25 +94,18 @@ export default function NewReport() {
 
       <TextInput
         style={styles.input}
-        placeholder="Title (optional — AI will suggest one)"
+        placeholder="Title (optional — file name or first line is used)"
         placeholderTextColor={colors.faint}
         value={title}
         onChangeText={setTitle}
         editable={!busy}
       />
 
-      <Button title={busy ? status || 'Working…' : 'Summarize'} onPress={summarize} loading={busy} disabled={!model || !text.trim()} />
+      <Button title={busy ? status || 'Reading file…' : 'Summarize'} onPress={summarize} loading={busy} disabled={!model || !text.trim() || busy} />
       {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
-      {partial ? (
-        <Card>
-          <Markdown text={partial} />
-        </Card>
-      ) : null}
-      {busy && !partial ? (
-        <View style={{ alignItems: 'center' }}>
-          <Text style={type.small}>Long reports are read part by part. Keep the app open.</Text>
-        </View>
-      ) : null}
+      <View style={{ alignItems: 'center' }}>
+        <Text style={[type.small, { textAlign: 'center' }]}>The summary is written in the background — you can leave this screen. You’ll get a notification when it’s ready.</Text>
+      </View>
     </Screen>
   );
 }

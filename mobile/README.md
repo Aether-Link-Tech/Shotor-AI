@@ -49,8 +49,7 @@ node node_modules/llama.rn/install/download-native-artifacts.js
 cd mobile
 npx expo prebuild --platform android --clean
 cd android
-./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a \
-  -PrnllamaVariants=rnllama,rnllama_v8_2_dotprod,rnllama_v8_2_dotprod_i8mm      # Windows: gradlew.bat ...
+./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a      # Windows: gradlew.bat ...
 # → android/app/build/outputs/apk/release/app-release.apk
 ```
 **Building on Windows: read this first**
@@ -60,8 +59,7 @@ cd android
   reg add HKLM\SYSTEM\CurrentControlSet\Control\FileSystem /v LongPathsEnabled /t REG_DWORD /d 1 /f
   ```
   Then use a newer CMake, whose Ninja supports long paths. Install it with `sdkmanager "cmake;3.31.6"` and add `android.cmakeVersion=3.31.6` to `android/gradle.properties`. Alternatively, build inside WSL (Linux).
-- **llama.rn compiles from source:** the version in use forces a source build, about 1,000 C++ files per CPU variant. Build only three variants (the app falls back automatically on other CPUs):
-  `-PrnllamaVariants=rnllama,rnllama_v8_2_dotprod,rnllama_v8_2_dotprod_i8mm`
+- **llama.rn compiles from source:** the version in use forces a source build, about 1,000 C++ files per CPU variant. Build **all** variants for release: a phone whose CPU has no matching variant falls back to the slow generic build (seen in testing as 10+ minutes per report). `-PrnllamaVariants=...` is only for quick local test builds.
 - An unstable internet connection causes *"No such host is known"* during the first build. Re-run the build; Gradle keeps what it already downloaded.
 
 Send `app-release.apk` by link, email, WhatsApp or USB. On the phone: open it, allow **Install unknown apps** for that app once, then tap Install.
