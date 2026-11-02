@@ -128,13 +128,13 @@ export default function Welcome() {
         <Step n={3} title="Offline AI model" done={!!model}>
           {model ? (
             <Text style={styles.ok}>✓ {model.info.name} is ready</Text>
-          ) : dl && dl.status !== 'error' ? (
+          ) : dl && dl.status !== 'paused' ? (
             <>
               <View style={styles.bar}>
                 <View style={[styles.fill, { width: `${pct}%` }]} />
               </View>
               <Text style={styles.note}>
-                Downloading {pct}% · {formatBytes(dl.written)} of {formatBytes(dl.total)}. You can continue, and it keeps downloading while the app is open.
+                {dl.status === 'waiting' ? `${pct}% · waiting for internet — it continues by itself.` : `Downloading ${pct}% · ${formatBytes(dl.written)} of ${formatBytes(dl.total)}. You can start using the app; it keeps downloading in the background.`}
               </Text>
             </>
           ) : (
@@ -142,7 +142,7 @@ export default function Welcome() {
               <Text style={styles.note}>
                 Download once ({formatBytes(DEFAULT_MODEL.sizeBytes)}, use Wi-Fi). After that, summaries, chat and email drafts work without internet.
               </Text>
-              <Button title="Download AI model" variant="secondary" onPress={startDownload} />
+              <Button title={dl?.status === 'paused' ? `Continue download (${pct}% saved)` : 'Download AI model'} variant="secondary" onPress={startDownload} />
               <Button title="I have the model file" variant="ghost" onPress={importFile} style={{ paddingVertical: 6 }} />
             </>
           )}

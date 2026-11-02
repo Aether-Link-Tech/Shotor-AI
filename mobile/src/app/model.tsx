@@ -11,6 +11,7 @@ import {
   formatBytes,
   importModelFromDevice,
   isDownloaded,
+  partialBytes,
   onDownload,
   pauseDownload,
   resumeDownload,
@@ -89,12 +90,13 @@ export default function ModelScreen() {
                   <View style={[styles.fill, { width: `${pct}%` }]} />
                 </View>
                 <Text style={type.small}>
-                  {mine.status === 'error' ? `Failed: ${mine.error}` : `${pct}% · ${formatBytes(mine.written)} of ${formatBytes(mine.total)}${mine.status === 'paused' ? ' · paused' : ''}`}
+                  {mine.status === 'waiting'
+                    ? `${pct}% · waiting for internet — it continues by itself`
+                    : `${pct}% · ${formatBytes(mine.written)} of ${formatBytes(mine.total)}${mine.status === 'paused' ? ' · paused (saved)' : ''}`}
                 </Text>
                 <Row>
-                  {mine.status === 'downloading' ? <Button small variant="secondary" title="Pause" onPress={pauseDownload} /> : null}
+                  {mine.status === 'downloading' || mine.status === 'waiting' ? <Button small variant="secondary" title="Pause" onPress={pauseDownload} /> : null}
                   {mine.status === 'paused' ? <Button small variant="secondary" title="Resume" onPress={resumeDownload} /> : null}
-                  {mine.status === 'error' ? <Button small variant="secondary" title="Try again" onPress={() => { cancelDownload(); start(m.id); }} /> : null}
                   <Button small variant="ghost" title="Cancel" onPress={cancelDownload} />
                 </Row>
               </>
@@ -114,7 +116,13 @@ export default function ModelScreen() {
                 />
               </Row>
             ) : (
-              <Button small variant="secondary" title="Download" onPress={() => start(m.id)} disabled={!!dl && dl.status !== 'error'} />
+              <Button
+                small
+                variant="secondary"
+                title={partialBytes(m) > 0 ? `Continue download (${formatBytes(partialBytes(m))} saved)` : 'Download'}
+                onPress={() => start(m.id)}
+                disabled={!!dl && dl.status !== 'paused'}
+              />
             )}
           </Card>
         );

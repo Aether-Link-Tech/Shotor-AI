@@ -1,6 +1,7 @@
-import { Directory, File, Paths } from 'expo-file-system';
-import type { DownloadTask } from 'expo-file-system';
+import { Directory, File, FileMode, Paths } from 'expo-file-system';
+import NetInfo from '@react-native-community/netinfo';
 import { getSetting, notify, setSetting } from '../db';
+import { beginWork, endWork, updateWork } from '../background';
 
 export type ModelInfo = {
   id: string;
@@ -45,6 +46,16 @@ export const MODELS: ModelInfo[] = [
     sizeBytes: 2497280256,
     ramGb: 8,
     description: 'Strong at structured reports and many languages. 8 GB RAM or more.',
+    disableThinking: true,
+  },
+  {
+    id: 'qwen3-1.7b',
+    name: 'Qwen 3 1.7B (fast)',
+    file: 'Qwen_Qwen3-1.7B-Q4_K_M.gguf',
+    url: 'https://huggingface.co/bartowski/Qwen_Qwen3-1.7B-GGUF/resolve/main/Qwen_Qwen3-1.7B-Q4_K_M.gguf',
+    sizeBytes: 1282439584,
+    ramGb: 4,
+    description: 'About 2x faster than the 3B model with good summaries. Best choice if reports feel slow.',
     disableThinking: true,
   },
   {
@@ -99,10 +110,24 @@ export function setActiveModel(id: string) {
   notify('model');
 }
 
-/* ---------- downloading ---------- */
+/* ---------- downloading (resumable) ---------- */
 
-export type DownloadState = { modelId: string; written: number; total: number; status: 'downloading' | 'paused' | 'error'; error?: string };
-let current: { task: DownloadTask; state: DownloadState } | null = null;
+/**
+ * The model is downloaded in 32 MB pieces with HTTP Range requests and appended to a ".part" file.
+ * If the connection drops, the app is closed or the phone restarts, the download continues from the
+ * last saved byte instead of starting over. It waits for the internet and retries by itself.
+ */
+const CHUNK = 32 * 1024 * 1024;
+
+export type DownloadState = {
+  modelId: string;
+  written: number;
+  total: number;
+  status: 'downloading' | 'paused' | 'waiting' | 'error';
+  error?: string;
+};
+
+let current: { state: DownloadState; abort: AbortController | null; stop: boolean } | null = null;
 const downloadListeners = new Set<(s: DownloadState | null) => void>();
 
 export function onDownload(fn: (s: DownloadState | null) => void) {
@@ -112,90 +137,159 @@ export function onDownload(fn: (s: DownloadState | null) => void) {
     downloadListeners.delete(fn);
   };
 }
+
 function emit() {
-  downloadListeners.forEach((fn) => fn(current?.state ?? null));
+  const s = current?.state ?? null;
+  downloadListeners.forEach((fn) => fn(s));
+  if (s) {
+    const pct = Math.floor((s.written / Math.max(s.total, 1)) * 100);
+    const text =
+      s.status === 'waiting'
+        ? `${pct}% · waiting for internet`
+        : s.status === 'paused'
+          ? `${pct}% · paused`
+          : `${pct}% · ${formatBytes(s.written)} of ${formatBytes(s.total)}`;
+    updateWork('download', text, pct);
+  }
+}
+
+function partFile(m: ModelInfo) {
+  return modelFile(m.file + '.part');
+}
+
+/** Bytes already saved for an unfinished download (survives app restarts). */
+export function partialBytes(m: ModelInfo) {
+  const f = partFile(m);
+  return f.exists ? (f.size ?? 0) : 0;
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function waitForInternet(job: { stop: boolean }) {
+  for (;;) {
+    const n = await NetInfo.fetch();
+    if (n.isConnected && n.isInternetReachable !== false) return;
+    if (job.stop) return;
+    await sleep(3000);
+  }
 }
 
 export async function downloadModel(m: ModelInfo) {
-  if (current && current.state.status === 'downloading') throw new Error('Another model is already downloading.');
+  if (current && !current.stop && current.state.modelId !== m.id) throw new Error('Another model is already downloading.');
+  if (current && !current.stop && current.state.modelId === m.id) return;
+  const done = partialBytes(m);
   const free = Paths.availableDiskSpace;
-  if (free && free < m.sizeBytes * 1.1) {
-    throw new Error(`Not enough storage. Need about ${(m.sizeBytes / 1e9).toFixed(1)} GB free.`);
+  if (free && free < (m.sizeBytes - done) * 1.05) {
+    throw new Error(`Not enough storage. Need about ${((m.sizeBytes - done) / 1e9).toFixed(1)} GB free.`);
   }
-  const part = modelFile(m.file + '.part');
-  if (part.exists) part.delete();
-  const task = File.createDownloadTask(m.url, part, {
-    onProgress: ({ bytesWritten, totalBytes }) => {
-      if (!current) return;
-      current.state = { ...current.state, written: bytesWritten, total: totalBytes || m.sizeBytes };
-      emit();
-    },
-  });
-  current = { task, state: { modelId: m.id, written: 0, total: m.sizeBytes, status: 'downloading' } };
+  const job = { state: { modelId: m.id, written: done, total: m.sizeBytes, status: 'downloading' } as DownloadState, abort: null as AbortController | null, stop: false };
+  current = job;
+  setSetting('model.downloading', m.id); // resume automatically on next app start
+  beginWork('download', `Downloading AI model: ${m.name}`, 'Starting…', Math.floor((done / m.sizeBytes) * 100));
   emit();
+  let failures = 0;
   try {
-    const result = await task.downloadAsync();
-    if (!result) return; // paused or cancelled
+    const part = partFile(m);
+    if (!part.exists) part.create();
+    const tmp = modelFile(m.file + '.chunk');
+    while (!job.stop) {
+      const offset = part.size ?? 0;
+      if (offset >= m.sizeBytes) break;
+      const last = Math.min(offset + CHUNK, m.sizeBytes) - 1;
+      job.state = { ...job.state, written: offset, status: 'downloading', error: undefined };
+      emit();
+      try {
+        if (tmp.exists) tmp.delete();
+        job.abort = new AbortController();
+        await File.downloadFileAsync(m.url, tmp, {
+          headers: { Range: `bytes=${offset}-${last}` },
+          idempotent: true,
+          signal: job.abort.signal,
+          onProgress: ({ bytesWritten }) => {
+            job.state = { ...job.state, written: offset + bytesWritten };
+            emit();
+          },
+        });
+        const expected = last - offset + 1;
+        if ((tmp.size ?? 0) !== expected) throw new Error(`Incomplete piece (${tmp.size} of ${expected} bytes)`);
+        // Append the piece, then drop it. Only complete pieces are added, so the .part file is always valid.
+        const bytes = await tmp.bytes();
+        const h = part.open(FileMode.Append);
+        try {
+          await h.writeBytes(bytes);
+        } finally {
+          h.close();
+        }
+        tmp.delete();
+        failures = 0;
+      } catch (e) {
+        if (job.stop) break;
+        failures++;
+        job.state = { ...job.state, status: 'waiting', error: e instanceof Error ? e.message : String(e) };
+        emit();
+        await waitForInternet(job);
+        // Back off on repeated failures (4 s … 60 s), then retry the same piece.
+        await sleep(Math.min(60000, 2000 * 2 ** Math.min(failures, 5)));
+      }
+    }
+    if (job.stop) return;
     const target = modelFile(m.file);
     if (target.exists) target.delete();
     part.move(target);
-    current = null;
+    setSetting('model.downloading', null);
+    if (current === job) current = null;
     emit();
     if (!getSetting('model.active') || !activeModel()) setActiveModel(m.id);
     notify('model');
-  } catch (e) {
-    if (current) {
-      current.state = { ...current.state, status: 'error', error: e instanceof Error ? e.message : String(e) };
-      emit();
-    }
-    throw e;
+  } finally {
+    endWork('download');
   }
 }
 
-export async function pauseDownload() {
+/** Pauses, keeping everything downloaded so far; resume continues from the same byte. */
+export function pauseDownload() {
   if (!current) return;
-  await current.task.pauseAsync();
+  current.stop = true;
+  current.abort?.abort();
   current.state = { ...current.state, status: 'paused' };
   emit();
 }
 
 export async function resumeDownload() {
-  if (!current) return;
-  const m = MODELS.find((x) => x.id === current!.state.modelId)!;
-  current.state = { ...current.state, status: 'downloading' };
+  const id = current?.state.modelId ?? getSetting('model.downloading');
+  const m = MODELS.find((x) => x.id === id);
+  if (!m) return;
+  if (current) current.stop = true;
+  current = null;
+  await downloadModel(m);
+}
+
+/** Stops and deletes the partial file. */
+export function cancelDownload() {
+  const id = current?.state.modelId ?? getSetting('model.downloading');
+  if (current) {
+    current.stop = true;
+    current.abort?.abort();
+  }
+  current = null;
+  setSetting('model.downloading', null);
+  endWork('download');
   emit();
-  try {
-    const result = await current.task.resumeAsync();
-    if (!result) return;
-    const part = modelFile(m.file + '.part');
-    const target = modelFile(m.file);
-    if (target.exists) target.delete();
-    part.move(target);
-    current = null;
-    emit();
-    if (!activeModel()) setActiveModel(m.id);
-    notify('model');
-  } catch (e) {
-    if (current) {
-      current.state = { ...current.state, status: 'error', error: e instanceof Error ? e.message : String(e) };
-      emit();
-    }
+  const m = MODELS.find((x) => x.id === id);
+  if (m) {
+    for (const f of [partFile(m), modelFile(m.file + '.chunk')]) if (f.exists) f.delete();
   }
 }
 
-export function cancelDownload() {
-  if (!current) return;
-  const m = current.state.modelId;
-  try {
-    current.task.pause();
-  } catch {}
-  current = null;
-  emit();
-  const info = MODELS.find((x) => x.id === m);
-  if (info) {
-    const part = modelFile(info.file + '.part');
-    if (part.exists) part.delete();
+/** Called at app start: continue a download that was running when the app closed. */
+export function resumeInterruptedDownload() {
+  const id = getSetting('model.downloading');
+  const m = MODELS.find((x) => x.id === id);
+  if (!m || isDownloaded(m)) {
+    if (id) setSetting('model.downloading', null);
+    return;
   }
+  downloadModel(m).catch(() => {});
 }
 
 /** Copy a .gguf file from the phone's storage (e.g. sent by USB/AirDrop) — fully offline install. */

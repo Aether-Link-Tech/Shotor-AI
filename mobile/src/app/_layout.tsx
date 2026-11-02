@@ -11,6 +11,7 @@ import { getSetting, migrate } from '../lib/db';
 import { setupNotifications, scheduleDailyBriefNotification } from '../lib/notifications';
 import { registerBackgroundSync, runSync, watchConnectivity } from '../lib/sync';
 import { runQueue } from '../lib/jobs';
+import { resumeInterruptedDownload } from '../lib/ai/models';
 import { PdfHost } from '../components/PdfHost';
 import { FromAetherLink, LogoMark } from '../components/Brand';
 import { Button } from '../components/ui';
@@ -35,6 +36,8 @@ export default function RootLayout() {
       runSync().catch(() => {});
       // Continue any report summaries that were interrupted when the app was closed.
       runQueue().catch(() => {});
+      // Continue a model download that was interrupted (connection lost, app closed, phone restarted).
+      resumeInterruptedDownload();
     })();
     const offNet = watchConnectivity();
     const appState = AppState.addEventListener('change', (s) => {
