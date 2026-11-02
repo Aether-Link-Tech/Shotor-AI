@@ -78,6 +78,7 @@ export default function CalendarScreen() {
     setError('');
     if (!model) {
       // No AI installed: open the form with the text as the title.
+      setQuick('');
       router.push({ pathname: '/meeting/[id]', params: { id: 'new', title: text, date: selected.toISOString() } });
       return;
     }
