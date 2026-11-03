@@ -13,6 +13,8 @@ export type ModelInfo = {
   description: string;
   /** Qwen3 is a reasoning model; we switch thinking off for fast, short answers. */
   disableThinking?: boolean;
+  /** Not offered for new downloads (too inaccurate); still works on phones that already have it. */
+  hidden?: boolean;
 };
 
 /**
@@ -65,7 +67,8 @@ export const MODELS: ModelInfo[] = [
     url: 'https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf',
     sizeBytes: 807694464,
     ramGb: 3,
-    description: 'Very small. In testing it sometimes invented figures in summaries — use only if the phone cannot run the larger models.',
+    description: 'Very small. In testing it invented figures and facts in summaries and briefs, so it is no longer offered.',
+    hidden: true,
   },
 ];
 

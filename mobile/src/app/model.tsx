@@ -69,7 +69,7 @@ export default function ModelScreen() {
       </Text>
       {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
 
-      {MODELS.map((m) => {
+      {MODELS.filter((m) => !m.hidden || downloaded[m.id]).map((m) => {
         const isActive = active?.info.id === m.id;
         const has = downloaded[m.id];
         const mine = dl?.modelId === m.id ? dl : null;

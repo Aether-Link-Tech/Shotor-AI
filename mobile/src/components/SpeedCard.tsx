@@ -43,14 +43,16 @@ export function SpeedCard() {
         <>
           <Text style={type.body}>A 600-word report takes about {mins(result.estimate600)}.</Text>
           <Text style={type.small}>
-            Reading {result.readTps.toFixed(1)} · writing {result.writeTps.toFixed(1)} words/sec · {result.gpu ? 'graphics chip' : `${result.threads} CPU cores`}
+            Reading {(result.readTps * 0.75).toFixed(1)} · writing {(result.writeTps * 0.75).toFixed(1)} words/sec · {result.gpu ? 'graphics chip' : `${result.threads} CPU cores`}
           </Text>
           <Text style={type.tiny}>Engine: {result.engine} · {result.gpuNote}</Text>
           {SLOW_ENGINES.test(result.engine) ? (
             <Text style={{ color: colors.warn, fontSize: 13 }}>This phone is using the basic engine build. Please report this phone model to Aether Link.</Text>
           ) : null}
-          {result.estimate600 > 180 ? (
-            <Text style={{ color: colors.warn, fontSize: 13 }}>Tip: the “Light” model in AI model settings is about 3× faster.</Text>
+          {result.estimate600 > 180 && model && ['llama-3.2-3b', 'gemma-3-4b', 'qwen3-4b'].includes(model.info.id) ? (
+            <Text style={{ color: colors.warn, fontSize: 13 }}>
+              Tip: “Qwen 3 1.7B (fast)” in AI model settings is about 1.5× faster, but a little less accurate.
+            </Text>
           ) : null}
         </>
       ) : (
