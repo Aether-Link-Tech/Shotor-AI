@@ -6,7 +6,7 @@ import { ModelBanner, useEngine } from '../../components/ModelBanner';
 import { ReportIcon } from '../../components/Icons';
 import { extractFile, pickAndExtract, type ExtractedDoc } from '../../lib/docs/extract';
 import { takePendingShare } from '../../lib/share';
-import { addReport, titleFor } from '../../lib/jobs';
+import { addReport, estimateSeconds, titleFor } from '../../lib/jobs';
 import { colors, radius, type } from '../../theme';
 
 export default function NewReport() {
@@ -131,6 +131,7 @@ export default function NewReport() {
         editable={!busy}
       />
 
+      {text.trim().length >= 40 && !busy ? <EstimateLine text={text} /> : null}
       <Button title={busy ? status || 'Reading file…' : 'Summarize'} onPress={summarize} loading={busy} disabled={!model || !text.trim() || busy} />
       {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
       <View style={{ alignItems: 'center' }}>
@@ -138,6 +139,13 @@ export default function NewReport() {
       </View>
     </Screen>
   );
+}
+
+function EstimateLine({ text }: { text: string }) {
+  const sec = estimateSeconds(text);
+  if (!sec) return null;
+  const label = sec < 75 ? 'about a minute' : `about ${Math.round(sec / 60)} minutes`;
+  return <Text style={[type.small, { textAlign: 'center' }]}>The summary will take {label} on this phone.</Text>;
 }
 
 const styles = StyleSheet.create({

@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { db, notify } from './db';
-import { summarizeReport } from './ai/tasks';
+import { splitIntoChunks, summarizeReport } from './ai/tasks';
+import { estimateTokens, lastSpeedResult } from './ai/engine';
 import { beginWork, endWork, updateWork } from './background';
 
 /**
@@ -56,6 +57,32 @@ export function cancelReport(id: number) {
   notify('reports');
 }
 
+/**
+ * Expected seconds for a summary on this phone, from the speed test (read and write speed).
+ * Null until the phone has been measured: no made-up countdowns.
+ */
+export function estimateSeconds(text: string): number | null {
+  const speed = lastSpeedResult();
+  if (!speed || speed.readTps <= 0 || speed.writeTps <= 0) return null;
+  const parts = splitIntoChunks(text).length;
+  const PROMPT = 250; // instructions around each part
+  let read = estimateTokens(text) + PROMPT * parts;
+  let write = 350;
+  if (parts > 1) {
+    write += 230 * parts; // notes for each part
+    read += 230 * parts + PROMPT; // final pass reads all the notes
+  }
+  return Math.round(8 + read / speed.readTps + write / speed.writeTps);
+}
+
+function timeLeft(finishAt: number | null) {
+  if (!finishAt) return '';
+  const left = (finishAt - Date.now()) / 1000;
+  if (left < 20) return ' · almost done';
+  if (left < 75) return ' · about a minute left';
+  return ` · about ${Math.round(left / 60)} min left`;
+}
+
 let running = false;
 
 /** Processes queued reports one at a time (the model can only do one thing at once). */
@@ -79,7 +106,13 @@ export async function runQueue() {
 
 async function runOne(id: number, title: string, text: string) {
   const key = `report:${id}`;
-  const setProgress = (msg: string, pct: number) => {
+  const est = estimateSeconds(text);
+  const finishAt = est ? Date.now() + est * 1000 : null;
+  let lastShown = '';
+  const setProgress = (step: string, pct: number) => {
+    const msg = step + timeLeft(finishAt);
+    if (msg === lastShown) return; // the text streams token by token; only write when the line changes
+    lastShown = msg;
     db.runSync(`UPDATE reports SET progress = ? WHERE id = ?`, msg, id);
     notify('reports');
     updateWork(key, msg, pct);
