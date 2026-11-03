@@ -1,11 +1,11 @@
 import type { ExpoConfig } from 'expo/config';
 
 /**
- * Gmail sign-in needs a Google OAuth client of type "iOS" (used on both platforms).
- * Provide it at build time:  GOOGLE_IOS_CLIENT_ID=1234-abc.apps.googleusercontent.com
- * Without it the app works fully, just without the Mail features.
+ * Gmail sign-in uses a Google OAuth client of type "iOS" (used on both platforms; see docs/GMAIL-SETUP.md).
+ * A client ID is public (it ships inside every app), so the default lives here; GOOGLE_IOS_CLIENT_ID overrides it.
  */
-const googleClientId = process.env.GOOGLE_IOS_CLIENT_ID?.trim() ?? '';
+const DEFAULT_GOOGLE_CLIENT_ID = '1032852921049-q1p7vi7tk7890mruhdq926g1jimc9ju6.apps.googleusercontent.com';
+const googleClientId = process.env.GOOGLE_IOS_CLIENT_ID?.trim() || DEFAULT_GOOGLE_CLIENT_ID;
 const googleScheme = googleClientId ? googleClientId.split('.').reverse().join('.') : null;
 
 const NAVY = '#0A1F44';
@@ -13,14 +13,14 @@ const NAVY = '#0A1F44';
 const config: ExpoConfig = {
   name: 'Shotor AI',
   slug: 'shotor-ai',
-  version: '1.1.1',
+  version: '1.1.2',
   orientation: 'portrait',
   icon: './assets/icon.png',
   scheme: googleScheme ? ['shotor', googleScheme] : 'shotor',
   userInterfaceStyle: 'light',
   ios: {
     bundleIdentifier: 'com.aetherlink.shotor',
-    buildNumber: '3',
+    buildNumber: '4',
     supportsTablet: true,
     deploymentTarget: '16.0',
     infoPlist: {
@@ -29,7 +29,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: 'com.aetherlink.shotor',
-    versionCode: 3,
+    versionCode: 4,
     allowBackup: false, // the AI model is GBs and data is private; never back it up to the cloud
     adaptiveIcon: {
       backgroundColor: '#FFFFFF',
