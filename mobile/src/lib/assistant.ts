@@ -166,7 +166,7 @@ export async function prepareMeeting(
       notes: m.notes.slice(0, 1500),
     },
     {
-      reports: reports.map((r) => `### ${r.title}\n${(r.summary ?? '').slice(0, 1300)}`).join('\n\n'),
+      reports: reports.map((r) => `### From the report "${r.title}"\n${(r.summary ?? '').slice(0, 1300)}`).join('\n\n'),
       emails: emails.map((e) => `- ${new Date(e.date).toLocaleDateString()} from ${e.from_name}: "${e.subject}" — ${(e.body || e.snippet).slice(0, 400)}`).join('\n'),
     },
     onToken,

@@ -209,24 +209,43 @@ export async function writeMeetingPrep(
 ) {
   const name = userName();
   const hasData = !!(related.reports || related.emails);
-  return generate(
+  const header = `**Meeting:** ${meeting.title} · ${meeting.when}${meeting.location ? ` · ${meeting.location}` : ''}\n\n`;
+  const meetingData = `<data name="meeting">\nTitle: ${meeting.title}\nWhen: ${meeting.when}\nWhere: ${meeting.location || 'not set'}\nNotes: ${meeting.notes || 'none'}\n</data>`;
+  const system = { role: 'system' as const, content: `You prepare ${name || 'a CEO'} for a meeting in under a minute of reading. Plain words, short bullets. ${SAFETY}` };
+
+  // Nothing related on the phone: say so plainly instead of letting the model pad with guesses.
+  if (!hasData) {
+    const body = await generate(
+      [
+        system,
+        {
+          role: 'user',
+          content:
+            `There are no reports or emails about this meeting. Using only the meeting title and notes, write:\n` +
+            `**Questions to raise**\n- 2 or 3 specific questions that fit this meeting\n\n**Before you go**\n- 1 or 2 short to-dos\n\nMax 80 words. Do not invent facts, numbers or history.\n\n${meetingData}`,
+        },
+      ],
+      { maxTokens: 200, temperature: 0.3, onToken: onToken && ((t) => onToken(header + '_No related reports or emails on this phone._\n\n' + t)) },
+    );
+    return header + '_No related reports or emails on this phone._\n\n' + body;
+  }
+
+  const body = await generate(
     [
-      { role: 'system', content: `You prepare ${name || 'a CEO'} for a meeting in under a minute of reading. Plain words, short bullets. ${SAFETY}` },
+      system,
       {
         role: 'user',
         content:
-          `Write a short prep note for this meeting.\n` +
-          `Format:\n**Meeting:** title, time, place in one line\n\n**What you should know**\n- facts from the related reports and emails (numbers, deadlines, open issues)\n\n` +
+          `Write a short prep note for this meeting. Use this format:\n` +
+          `**What you should know**\n- facts from the related reports, each starting with the report name ("Q3 report: revenue $18.4M"); a report's figures belong to the company that wrote it, not to the people in this meeting\n- what each related email says or asks, naming the sender (a question or request in an email is NOT a fact: write "Murat asks whether…")\n\n` +
           `**Decisions or questions to raise**\n- ...\n\n**Before you go**\n- 1 to 3 short to-dos\n\n` +
-          (hasData
-            ? 'Use only facts from the data below; skip anything that is not related to this meeting. '
-            : 'There are no related reports or emails, so under "What you should know" write "No related reports or emails on this phone." and keep the rest to general, clearly useful points. ') +
-          `Max 170 words.\n\n<data name="meeting">\nTitle: ${meeting.title}\nWhen: ${meeting.when}\nWhere: ${meeting.location || 'not set'}\nNotes: ${meeting.notes || 'none'}\n</data>\n` +
+          `Use only the data below; skip anything not related to this meeting. Copy numbers and dates exactly. Max 150 words.\n\n${meetingData}\n` +
           `<data name="related reports">\n${related.reports || 'none'}\n</data>\n<data name="related emails">\n${related.emails || 'none'}\n</data>`,
       },
     ],
-    { maxTokens: 420, temperature: 0.3, onToken },
+    { maxTokens: 380, temperature: 0.2, onToken: onToken && ((t) => onToken(header + t)) },
   );
+  return header + body;
 }
 
 /* ------------------------------ daily brief ------------------------------- */
