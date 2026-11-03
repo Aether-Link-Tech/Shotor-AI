@@ -3,7 +3,10 @@ package expo.modules.shotorbackground
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
 import expo.modules.kotlin.exception.Exceptions
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -40,5 +43,25 @@ class ShotorBackgroundModule : Module() {
     }
 
     Function("isRunning") { running }
+
+    /** True when Android's battery saver will not stop Shotor's background work. */
+    Function("isBatteryUnrestricted") {
+      val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+      pm.isIgnoringBatteryOptimizations(context.packageName)
+    }
+
+    /** Shows Android's "Let app always run in background?" dialog (falls back to the battery settings list). */
+    Function("requestBatteryUnrestricted") {
+      val starter = appContext.currentActivity ?: context
+      try {
+        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:" + context.packageName))
+        if (starter !is android.app.Activity) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        starter.startActivity(intent)
+      } catch (e: Exception) {
+        val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+        if (starter !is android.app.Activity) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        starter.startActivity(intent)
+      }
+    }
   }
 }

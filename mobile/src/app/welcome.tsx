@@ -10,6 +10,7 @@ import { FromAetherLink, LogoMark } from '../components/Brand';
 import { Button } from '../components/ui';
 import { getSetting, setSetting, useLive } from '../lib/db';
 import { calendarPermission } from '../lib/calendar';
+import { batteryUnrestricted, requestBatteryUnrestricted } from '../lib/background';
 import { exactRemindersAllowed, requestExactReminders, scheduleDailyBriefNotification, scheduleMeetingReminders, setupNotifications } from '../lib/notifications';
 import { MODELS, activeModel, downloadModel, formatBytes, importModelFromDevice, onDownload, type DownloadState } from '../lib/ai/models';
 import { colors } from '../theme';
@@ -44,6 +45,8 @@ export default function Welcome() {
       await scheduleMeetingReminders().catch(() => {});
       await scheduleDailyBriefNotification().catch(() => {});
     }
+    // Lets reports keep running after the app is closed, even on phones with strict battery savers.
+    if (!batteryUnrestricted()) requestBatteryUnrestricted();
     if (!calendar || !notifications) {
       Alert.alert('Some access was not allowed', 'You can allow it later in the phone Settings → Apps → Shotor AI → Permissions.');
     }

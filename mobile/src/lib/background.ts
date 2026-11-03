@@ -12,6 +12,8 @@ type NativeBackground = {
   update(title: string, text: string, progress: number): void;
   stop(): void;
   isRunning(): boolean;
+  isBatteryUnrestricted(): boolean;
+  requestBatteryUnrestricted(): void;
 };
 const Native = requireOptionalNativeModule<NativeBackground>('ShotorBackground');
 
@@ -53,4 +55,20 @@ export function updateWork(key: string, text: string, progress = -1) {
 export function endWork(key: string) {
   active.delete(key);
   show();
+}
+
+/** Android: whether the battery saver may stop background work. Always true where it does not apply (iOS). */
+export function batteryUnrestricted(): boolean {
+  try {
+    return Native ? Native.isBatteryUnrestricted() : true;
+  } catch {
+    return true;
+  }
+}
+
+/** Android: asks to let Shotor always run in the background (one system dialog). */
+export function requestBatteryUnrestricted() {
+  try {
+    Native?.requestBatteryUnrestricted();
+  } catch {}
 }

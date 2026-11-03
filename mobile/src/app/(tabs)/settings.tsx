@@ -7,6 +7,7 @@ import { Card, Row, Screen, SectionTitle } from '../../components/ui';
 import { FromAetherLink } from '../../components/Brand';
 import { useEngine } from '../../components/ModelBanner';
 import { SpeedCard } from '../../components/SpeedCard';
+import { BatteryCard } from '../../components/BatteryCard';
 import { db, getSetting, notify, setSetting, useLive } from '../../lib/db';
 import { reminderMinutes, setReminderMinutes } from '../../lib/calendar';
 import { scheduleDailyBriefNotification, scheduleMeetingReminders, setupNotifications } from '../../lib/notifications';
@@ -91,6 +92,7 @@ export default function Settings() {
       </Pressable>
 
       <SpeedCard />
+      <BatteryCard />
 
       <SectionTitle>Meeting reminders</SectionTitle>
       <Card>

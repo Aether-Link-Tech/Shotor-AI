@@ -10,6 +10,9 @@ const STOP_WORDS = ['</s>', '<|end|>', '<|eot_id|>', '<|end_of_text|>', '<|im_en
 /** Context window. 4096 tokens fits a 3–4B model comfortably in phone RAM. */
 export const N_CTX = 4096;
 
+/** One completion at a time: the model context is single-threaded. */
+let queue: Promise<unknown> = Promise.resolve();
+
 type Loaded = { ctx: LlamaContext; path: string; info: ModelInfo };
 let loaded: Loaded | null = null;
 let loading: Promise<Loaded> | null = null;
@@ -131,7 +134,31 @@ async function benchOnce(path: string, cfg: SpeedConfig): Promise<SpeedResult> {
  * Tries a few thread counts (and the GPU where available) on this phone, keeps the fastest
  * and saves it. Takes about a minute; the model is reloaded with the winner afterwards.
  */
-export async function runSpeedTest(onStep?: (msg: string) => void): Promise<{ best: SpeedResult; all: SpeedResult[] }> {
+export function runSpeedTest(onStep?: (msg: string) => void): Promise<{ best: SpeedResult; all: SpeedResult[] }> {
+  // Runs in the same queue as generate(), so it never fights a report or chat for the model.
+  const p = queue.then(() => speedTestNow(onStep), () => speedTestNow(onStep));
+  queue = p.catch(() => {});
+  return p;
+}
+
+let tuning: Promise<unknown> | null = null;
+/**
+ * Runs the speed test once per installed model, by itself, so every phone gets its fastest settings
+ * without anyone opening Settings. Called at app start and after a model download finishes.
+ */
+export function autoTune() {
+  const model = activeModel();
+  if (!model || tuning || getSetting('ai.tunedFor') === model.info.id) return;
+  tuning = runSpeedTest()
+    .then(() => setSetting('ai.tunedFor', model.info.id))
+    .catch(() => {})
+    .finally(() => {
+      tuning = null;
+      notify('model');
+    });
+}
+
+async function speedTestNow(onStep?: (msg: string) => void): Promise<{ best: SpeedResult; all: SpeedResult[] }> {
   const model = activeModel();
   if (!model) throw new Error('Install an AI model first.');
   await unloadModel();
@@ -159,6 +186,7 @@ export async function runSpeedTest(onStep?: (msg: string) => void): Promise<{ be
       setSetting('ai.gpu', best.gpu ? '1' : '0');
     }
     setSetting('ai.speed', JSON.stringify(best));
+    setSetting('ai.tunedFor', model.info.id);
     return { best, all };
   } finally {
     setStatus('idle');
@@ -174,8 +202,6 @@ export function lastSpeedResult(): SpeedResult | null {
   }
 }
 
-/** One completion at a time: the model context is single-threaded. */
-let queue: Promise<unknown> = Promise.resolve();
 
 export type GenerateOptions = {
   maxTokens?: number;

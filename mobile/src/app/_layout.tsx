@@ -11,7 +11,8 @@ import { getSetting, migrate } from '../lib/db';
 import { setupNotifications, scheduleDailyBriefNotification } from '../lib/notifications';
 import { registerBackgroundSync, runSync, watchConnectivity } from '../lib/sync';
 import { runQueue } from '../lib/jobs';
-import { resumeInterruptedDownload } from '../lib/ai/models';
+import { onDownload, resumeInterruptedDownload } from '../lib/ai/models';
+import { autoTune } from '../lib/ai/engine';
 import { PdfHost } from '../components/PdfHost';
 import { FromAetherLink, LogoMark } from '../components/Brand';
 import { Button } from '../components/ui';
@@ -38,7 +39,13 @@ export default function RootLayout() {
       runQueue().catch(() => {});
       // Continue a model download that was interrupted (connection lost, app closed, phone restarted).
       resumeInterruptedDownload();
+      // Tune the AI for this phone once per model (picks the fastest cores / graphics chip setting).
+      autoTune();
     })();
+    // …and again right after a new model finishes downloading.
+    const offDl = onDownload((d) => {
+      if (!d) autoTune();
+    });
     const offNet = watchConnectivity();
     const appState = AppState.addEventListener('change', (s) => {
       if (s === 'background') backgroundedAt.current = Date.now();
@@ -55,6 +62,7 @@ export default function RootLayout() {
     });
     return () => {
       offNet();
+      offDl();
       appState.remove();
       tap.remove();
     };
