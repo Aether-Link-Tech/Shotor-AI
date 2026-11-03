@@ -3,16 +3,16 @@ import { Alert, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'rea
 import { router } from 'expo-router';
 import * as LocalAuthentication from 'expo-local-authentication';
 import Constants from 'expo-constants';
-import { Card, Row, Screen, SectionTitle } from '../../components/ui';
-import { FromAetherLink } from '../../components/Brand';
-import { useEngine } from '../../components/ModelBanner';
-import { SpeedCard } from '../../components/SpeedCard';
-import { BatteryCard } from '../../components/BatteryCard';
-import { db, getSetting, notify, setSetting, useLive } from '../../lib/db';
-import { reminderMinutes, setReminderMinutes } from '../../lib/calendar';
-import { scheduleDailyBriefNotification, scheduleMeetingReminders, setupNotifications } from '../../lib/notifications';
-import { disconnectGmail } from '../../lib/gmail/auth';
-import { colors, type } from '../../theme';
+import { Card, Row, Screen, SectionTitle } from '../components/ui';
+import { FromAetherLink } from '../components/Brand';
+import { useEngine } from '../components/ModelBanner';
+import { SpeedCard } from '../components/SpeedCard';
+import { BatteryCard } from '../components/BatteryCard';
+import { db, getSetting, notify, setSetting, useLive } from '../lib/db';
+import { reminderMinutes, setReminderMinutes } from '../lib/calendar';
+import { scheduleDailyBriefNotification, scheduleMeetingReminders, setupNotifications } from '../lib/notifications';
+import { disconnectGmail } from '../lib/gmail/auth';
+import { colors, type } from '../theme';
 
 const REMINDER_OPTIONS = [5, 10, 15, 30, 60, -1];
 const BRIEF_TIMES = ['07:00', '08:00', '09:00', 'off'];

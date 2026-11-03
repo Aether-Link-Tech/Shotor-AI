@@ -13,14 +13,14 @@ const NAVY = '#0A1F44';
 const config: ExpoConfig = {
   name: 'Shotor AI',
   slug: 'shotor-ai',
-  version: '1.2.0',
+  version: '1.2.1',
   orientation: 'portrait',
   icon: './assets/icon.png',
   scheme: googleScheme ? ['shotor', googleScheme] : 'shotor',
   userInterfaceStyle: 'light',
   ios: {
     bundleIdentifier: 'com.aetherlink.shotor',
-    buildNumber: '5',
+    buildNumber: '6',
     supportsTablet: true,
     deploymentTarget: '16.0',
     infoPlist: {
@@ -29,7 +29,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: 'com.aetherlink.shotor',
-    versionCode: 5,
+    versionCode: 6,
     allowBackup: false, // the AI model is GBs and data is private; never back it up to the cloud
     adaptiveIcon: {
       backgroundColor: '#FFFFFF',

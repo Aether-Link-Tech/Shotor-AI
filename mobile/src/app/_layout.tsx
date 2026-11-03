@@ -62,11 +62,23 @@ export default function RootLayout() {
         runSync().catch(() => {});
       }
     });
-    const tap = Notifications.addNotificationResponseReceivedListener((r) => {
+    const openFromNotification = (r: Notifications.NotificationResponse) => {
       const data = r.notification.request.content.data as { kind?: string; url?: string } | undefined;
       if (data?.kind === 'brief') router.navigate('/');
       else if ((data?.kind === 'meeting' || data?.kind === 'report') && data.url) router.push(data.url as never);
+    };
+    const tap = Notifications.addNotificationResponseReceivedListener((r) => {
+      openFromNotification(r);
+      Notifications.clearLastNotificationResponse();
     });
+    // A tap that started (or re-opened) the app arrives before the listener exists: handle it here.
+    setTimeout(() => {
+      const last = Notifications.getLastNotificationResponse();
+      if (last) {
+        Notifications.clearLastNotificationResponse();
+        openFromNotification(last);
+      }
+    }, 300);
     return () => {
       offNet();
       offDl();
@@ -95,6 +107,7 @@ export default function RootLayout() {
         <Stack.Screen name="mail/[id]" options={{ title: 'Email' }} />
         <Stack.Screen name="meeting/[id]" options={{ title: 'Meeting' }} />
         <Stack.Screen name="model" options={{ title: 'AI model' }} />
+        <Stack.Screen name="settings" options={{ title: 'Settings' }} />
         <Stack.Screen name="welcome" options={{ headerShown: false, gestureEnabled: false }} />
       </Stack>
       <PdfHost />

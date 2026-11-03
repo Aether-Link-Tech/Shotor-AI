@@ -5,6 +5,7 @@ import { HeaderTitle } from '../../components/Brand';
 import { CalendarIcon, ChatIcon, HomeIcon, MailIcon, ReportIcon, SettingsIcon } from '../../components/Icons';
 import { colors } from '../../theme';
 
+/** Settings is a normal screen (src/app/settings.tsx) opened from the gear in every tab header. */
 function SettingsButton() {
   return (
     <Pressable onPress={() => router.push('/settings')} hitSlop={12} style={{ paddingHorizontal: 16 }} accessibilityRole="button" accessibilityLabel="Settings">
@@ -50,8 +51,6 @@ export default function TabLayout() {
         name="mail"
         options={{ title: 'Mail', headerTitle: () => <HeaderTitle title="Mail" />, tabBarIcon: ({ color }) => <MailIcon color={color} /> }}
       />
-      {/* Settings opens from the gear icon in every header, keeping the tab bar to five items. */}
-      <Tabs.Screen name="settings" options={{ href: null, title: 'Settings', headerTitle: () => <HeaderTitle title="Settings" />, headerRight: () => null }} />
     </Tabs>
   );
 }

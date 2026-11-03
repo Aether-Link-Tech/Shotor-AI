@@ -252,19 +252,50 @@ export async function writeMeetingPrep(
 
 export async function writeDailyBrief(data: { meetings: string; emails: string; reports: string; outbox: string }, onToken?: (t: string) => void) {
   const name = userName();
-  return generate(
+  // The meetings, email list and outbox line are written by the app, not the AI, so they are always exact.
+  const meetingsBlock = data.meetings ? `**Meetings today**\n${data.meetings}\n\n` : '';
+  const emailLines = data.emails
+    .split('\n')
+    .filter(Boolean)
+    .slice(0, 5)
+    .map((l) => l.split(' — ')[0]);
+  const emailBlock = emailLines.length ? `**Email**\n${emailLines.join('\n')}\n\n` : '';
+  const outboxBlock = data.outbox ? `\n\n_Outbox: ${data.outbox}._` : '';
+
+  if (!data.emails && !data.reports) {
+    const line = data.meetings
+      ? `**Today in one line:** ${data.meetings.split('\n').length} meeting${data.meetings.split('\n').length > 1 ? 's' : ''} today; no new email or reports.`
+      : '**Today in one line:** A clear day: no meetings, new email or new reports yet.';
+    const text = `${line}\n\n${meetingsBlock}`.trim() + outboxBlock;
+    onToken?.(text);
+    return text;
+  }
+
+  // Ask only for the sections that have data, described in words (small models copy example bullets literally).
+  const sections = [
+    data.reports && 'a line "**Reports**" followed by one bullet per report with its single most important takeaway, copying numbers exactly',
+    'a line "**Priorities**" followed by a numbered list of 1 to 3 actions that are stated in the data (a decision, deadline or request); if the data has only one, list only one — never invent tasks',
+  ].filter(Boolean);
+  const assemble = (ai: string) => {
+    const t = ai.replace(/^\s*[-•*]\s*$/gm, '').replace(/\n{3,}/g, '\n\n').trim(); // drop empty bullets
+    const cut = t.indexOf('\n\n');
+    const first = cut > 0 ? t.slice(0, cut) : t;
+    const rest = cut > 0 ? t.slice(cut + 2) : '';
+    return `${first}\n\n${meetingsBlock}${emailBlock}${rest}`.trim() + outboxBlock;
+  };
+  const ai = await generate(
     [
       { role: 'system', content: `You write a very short daily brief for a CEO or manager. Plain words, scannable. ${SAFETY}` },
       {
         role: 'user',
         content:
           `Write ${name ? name + "'s" : 'the'} daily brief for ${today()} using only the data below.\n` +
-          `Format:\n**Today in one line:** ...\n\n**Meetings**\n- time – title (location)\n\n**Email**\n- what needs attention\n\n**Reports**\n- one short sentence per report: its single most important takeaway\n\n**Top 3 priorities**\n1. ...\n\n` +
-          `Omit any section that has no data. Everything in the meetings data happens today — never call it another day. Max 180 words.\n\n` +
-          `<data name="meetings (all of these are TODAY, ${today()})">\n${data.meetings || 'none'}\n</data>\n<data name="emails">\n${data.emails || 'none'}\n</data>\n` +
-          `<data name="reports">\n${data.reports || 'none'}\n</data>\n<data name="outbox">\n${data.outbox || 'empty'}\n</data>`,
+          `Start with "**Today in one line:**" and one sentence about the day, then a blank line, then ${sections.join(', then ')}.\n` +
+          `Do not write a meetings or email section (the app lists those). Do not mention anything that is not in the data. Max 120 words.\n\n` +
+          `<data name="meetings today">\n${data.meetings || 'none'}\n</data>\n<data name="emails">\n${data.emails || 'none'}\n</data>\n<data name="reports">\n${data.reports || 'none'}\n</data>`,
       },
     ],
-    { maxTokens: 500, temperature: 0.4, onToken },
+    { maxTokens: 420, temperature: 0.3, onToken: onToken && ((t) => onToken(assemble(t))) },
   );
+  return assemble(ai);
 }
