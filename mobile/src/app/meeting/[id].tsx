@@ -3,6 +3,7 @@ import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-nativ
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Button, Card, Row, Screen, SectionTitle } from '../../components/ui';
 import { DateTimeField } from '../../components/DateTimeField';
+import { MeetingPrepCard } from '../../components/MeetingPrepCard';
 import {
   createMeeting,
   deleteMeeting,
@@ -138,6 +139,8 @@ export default function MeetingEditor() {
           <Button small variant="secondary" title="Open in calendar app" onPress={() => openInCalendarApp(p.id).catch((e) => setError(String(e?.message ?? e)))} />
         </Card>
       ) : null}
+
+      {!isNew && !loading && title ? <MeetingPrepCard meetingId={p.id} title={title} start={start} end={end} location={location} notes={notes} /> : null}
 
       <TextInput
         style={[styles.input, styles.title]}

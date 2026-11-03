@@ -1,6 +1,6 @@
-import { db, dayKey, notify } from './db';
+import { db, dayKey, getSetting, notify, setSetting } from './db';
 import { meetingLine, todaysMeetings, upcomingMeetings } from './calendar';
-import { chatSystemPrompt, trimHistory, writeDailyBrief } from './ai/tasks';
+import { chatSystemPrompt, trimHistory, writeDailyBrief, writeMeetingPrep } from './ai/tasks';
 import { generate, type ChatMessage } from './ai/engine';
 
 export type Report = { id: number; title: string; source: string; original_text: string; summary: string | null; created_at: number };
@@ -114,4 +114,63 @@ export async function generateDailyBrief(onToken?: (t: string) => void) {
 
 export function todaysBrief() {
   return db.getFirstSync<{ content: string; created_at: number }>('SELECT content, created_at FROM briefs WHERE day = ?', dayKey());
+}
+
+/* ------------------------------ meeting prep ------------------------------- */
+
+function keywords(text: string) {
+  return [...new Set(text.toLowerCase().split(/[^a-z0-9À-￿]+/).filter((w) => w.length > 2 && !STOP.has(w)))];
+}
+
+/** Emails whose sender, subject or text shares words with the meeting (e.g. a company or person name). */
+function relatedEmails(query: string, limit = 4): Email[] {
+  const words = keywords(query).filter((w) => !['meeting', 'call', 'review', 'sync', 'weekly', 'team'].includes(w));
+  if (!words.length) return [];
+  return db
+    .getAllSync<Email>('SELECT * FROM emails ORDER BY date DESC LIMIT 300')
+    .map((e) => {
+      const hay = `${e.from_name} ${e.from_addr} ${e.subject} ${e.snippet}`.toLowerCase();
+      return { e, score: words.reduce((s, w) => s + (hay.includes(w) ? 1 : 0), 0) };
+    })
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score || b.e.date - a.e.date)
+    .slice(0, limit)
+    .map((x) => x.e);
+}
+
+export type MeetingPrep = { text: string; at: number };
+
+export function savedMeetingPrep(meetingId: string): MeetingPrep | null {
+  try {
+    const v = getSetting(`prep.${meetingId}`);
+    return v ? (JSON.parse(v) as MeetingPrep) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A short "prepare me" note for a meeting, built from related report summaries and emails on the phone. */
+export async function prepareMeeting(
+  meetingId: string,
+  m: { title: string; start: Date; end: Date; location: string; notes: string },
+  onToken?: (t: string) => void,
+) {
+  const query = `${m.title} ${m.location} ${m.notes}`;
+  const reports = findRelevantReports(query, 2).filter((r) => keywords(m.title).some((w) => (r.title + ' ' + r.summary).toLowerCase().includes(w)));
+  const emails = relatedEmails(query);
+  const text = await writeMeetingPrep(
+    {
+      title: m.title,
+      when: `${m.start.toLocaleString(undefined, { weekday: 'long', day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' })} – ${m.end.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`,
+      location: m.location,
+      notes: m.notes.slice(0, 1500),
+    },
+    {
+      reports: reports.map((r) => `### ${r.title}\n${(r.summary ?? '').slice(0, 1300)}`).join('\n\n'),
+      emails: emails.map((e) => `- ${new Date(e.date).toLocaleDateString()} from ${e.from_name}: "${e.subject}" — ${(e.body || e.snippet).slice(0, 400)}`).join('\n'),
+    },
+    onToken,
+  );
+  setSetting(`prep.${meetingId}`, JSON.stringify({ text, at: Date.now() } satisfies MeetingPrep));
+  return text;
 }

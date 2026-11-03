@@ -200,6 +200,35 @@ export async function triageEmail(email: EmailForReply): Promise<'urgent' | 'rep
   return w.includes('URGENT') ? 'urgent' : w.includes('REPLY') ? 'reply' : 'fyi';
 }
 
+/* ------------------------------ meeting prep ------------------------------- */
+
+export async function writeMeetingPrep(
+  meeting: { title: string; when: string; location: string; notes: string },
+  related: { reports: string; emails: string },
+  onToken?: (t: string) => void,
+) {
+  const name = userName();
+  const hasData = !!(related.reports || related.emails);
+  return generate(
+    [
+      { role: 'system', content: `You prepare ${name || 'a CEO'} for a meeting in under a minute of reading. Plain words, short bullets. ${SAFETY}` },
+      {
+        role: 'user',
+        content:
+          `Write a short prep note for this meeting.\n` +
+          `Format:\n**Meeting:** title, time, place in one line\n\n**What you should know**\n- facts from the related reports and emails (numbers, deadlines, open issues)\n\n` +
+          `**Decisions or questions to raise**\n- ...\n\n**Before you go**\n- 1 to 3 short to-dos\n\n` +
+          (hasData
+            ? 'Use only facts from the data below; skip anything that is not related to this meeting. '
+            : 'There are no related reports or emails, so under "What you should know" write "No related reports or emails on this phone." and keep the rest to general, clearly useful points. ') +
+          `Max 170 words.\n\n<data name="meeting">\nTitle: ${meeting.title}\nWhen: ${meeting.when}\nWhere: ${meeting.location || 'not set'}\nNotes: ${meeting.notes || 'none'}\n</data>\n` +
+          `<data name="related reports">\n${related.reports || 'none'}\n</data>\n<data name="related emails">\n${related.emails || 'none'}\n</data>`,
+      },
+    ],
+    { maxTokens: 420, temperature: 0.3, onToken },
+  );
+}
+
 /* ------------------------------ daily brief ------------------------------- */
 
 export async function writeDailyBrief(data: { meetings: string; emails: string; reports: string; outbox: string }, onToken?: (t: string) => void) {
