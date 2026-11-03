@@ -240,5 +240,7 @@ function cleanOutput(text: string) {
   return text
     .replace(/<think>[\s\S]*?<\/think>/g, '')
     .replace(/^<think>[\s\S]*$/, '')
+    // Small models sometimes echo the fences we put around untrusted text.
+    .replace(/<\/?(document|email|data)(\s[^>]*)?>/gi, '')
     .trim();
 }

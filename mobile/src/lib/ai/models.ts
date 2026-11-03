@@ -55,7 +55,7 @@ export const MODELS: ModelInfo[] = [
     url: 'https://huggingface.co/bartowski/Qwen_Qwen3-1.7B-GGUF/resolve/main/Qwen_Qwen3-1.7B-Q4_K_M.gguf',
     sizeBytes: 1282439584,
     ramGb: 4,
-    description: 'About 2x faster than the 3B model with good summaries. Best choice if reports feel slow.',
+    description: 'About 1.5x faster than the 3B model. Summaries are good but can add small details; email drafts are weaker.',
     disableThinking: true,
   },
   {
