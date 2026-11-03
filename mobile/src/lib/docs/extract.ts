@@ -22,6 +22,14 @@ export async function pickAndExtract(onProgress?: (msg: string) => void): Promis
   const res = await DocumentPicker.getDocumentAsync({ type: TYPES, multiple: false, copyToCacheDirectory: true });
   if (res.canceled || !res.assets?.length) return null;
   const asset = res.assets[0];
+  return extractFile({ uri: asset.uri, name: asset.name, mimeType: asset.mimeType, size: asset.size }, onProgress);
+}
+
+/** Reads the text of a local file (a picked file, or one shared to Shotor from another app). The file is deleted afterwards. */
+export async function extractFile(
+  asset: { uri: string; name?: string | null; mimeType?: string | null; size?: number | null },
+  onProgress?: (msg: string) => void,
+): Promise<ExtractedDoc> {
   if (asset.size && asset.size > MAX_FILE_BYTES) throw new Error('This file is larger than 25 MB.');
   const name = asset.name || 'Document';
   const ext = (name.split('.').pop() || '').toLowerCase();
@@ -60,7 +68,7 @@ export async function pickAndExtract(onProgress?: (msg: string) => void): Promis
     return doc;
   } finally {
     try {
-      if (file.exists) file.delete(); // the picker's cache copy
+      if (file.exists) file.delete(); // the picker's / share's cache copy
     } catch {}
   }
 }

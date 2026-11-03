@@ -63,6 +63,7 @@ const config: ExpoConfig = {
     ['llama.rn', { enableOpenCLAndHexagon: true }],
     './plugins/withReleaseSigning',
     './plugins/withShortNativePaths',
+    './plugins/withShareTarget',
     [
       'expo-build-properties',
       {

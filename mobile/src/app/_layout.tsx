@@ -13,6 +13,7 @@ import { registerBackgroundSync, runSync, watchConnectivity } from '../lib/sync'
 import { runQueue } from '../lib/jobs';
 import { onDownload, resumeInterruptedDownload } from '../lib/ai/models';
 import { autoTune } from '../lib/ai/engine';
+import { checkForShare, onShare } from '../lib/share';
 import { PdfHost } from '../components/PdfHost';
 import { FromAetherLink, LogoMark } from '../components/Brand';
 import { Button } from '../components/ui';
@@ -42,6 +43,12 @@ export default function RootLayout() {
       // Tune the AI for this phone once per model (picks the fastest cores / graphics chip setting).
       autoTune();
     })();
+    // A document or text shared to Shotor from another app opens the New report screen.
+    const openShare = () => {
+      if (checkForShare() && getSetting('onboarding.done') === '1') router.push({ pathname: '/report/new', params: { shared: String(Date.now()) } });
+    };
+    setTimeout(openShare, 300); // after the first screen has mounted
+    const offShare = onShare(openShare);
     // …and again right after a new model finishes downloading.
     const offDl = onDownload((d) => {
       if (!d) autoTune();
@@ -63,6 +70,7 @@ export default function RootLayout() {
     return () => {
       offNet();
       offDl();
+      offShare();
       appState.remove();
       tap.remove();
     };

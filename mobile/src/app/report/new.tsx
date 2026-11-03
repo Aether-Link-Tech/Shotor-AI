@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Button, Card, Row, Screen } from '../../components/ui';
 import { ModelBanner, useEngine } from '../../components/ModelBanner';
 import { ReportIcon } from '../../components/Icons';
-import { pickAndExtract, type ExtractedDoc } from '../../lib/docs/extract';
+import { extractFile, pickAndExtract, type ExtractedDoc } from '../../lib/docs/extract';
+import { takePendingShare } from '../../lib/share';
 import { addReport, titleFor } from '../../lib/jobs';
 import { colors, radius, type } from '../../theme';
 
@@ -19,6 +20,35 @@ export default function NewReport() {
   const [error, setError] = useState('');
 
   const text = mode === 'pick' ? doc?.text ?? '' : pasted;
+
+  // Opened from Android's Share menu: load the shared file or text.
+  const { shared } = useLocalSearchParams<{ shared?: string }>();
+  useEffect(() => {
+    if (!shared) return;
+    const item = takePendingShare();
+    if (!item) return;
+    if (item.error) return setError(`${item.name ? item.name + ': ' : ''}${item.error}`);
+    if (item.text) {
+      setMode('paste');
+      setPasted(item.text);
+      if (item.subject) setTitle(item.subject);
+      return;
+    }
+    if (!item.uri) return;
+    setMode('pick');
+    setError('');
+    setBusy(true);
+    extractFile({ uri: item.uri, name: item.name, mimeType: item.mimeType }, setStatus)
+      .then((d) => {
+        setDoc(d);
+        setTitle(d.name.replace(/\.[^.]+$/, ''));
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+      .finally(() => {
+        setBusy(false);
+        setStatus('');
+      });
+  }, [shared]);
 
   async function pick() {
     setError('');
