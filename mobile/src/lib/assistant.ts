@@ -18,6 +18,12 @@ export type Email = {
   message_id_header: string | null;
   references_header: string | null;
   replied: number;
+  /** Set by the email assistant (lib/mail/agent.ts). */
+  is_bulk: number;
+  category: 'important' | 'routine' | 'no_reply' | null;
+  ai_summary: string | null;
+  options: string | null;
+  handled: 'asked' | 'auto_replied' | 'skipped' | 'dismissed' | null;
 };
 
 const STOP = new Set('the a an and or of to in on for with is are was were be what which who how when do does did my me i you it this that from at by about'.split(' '));

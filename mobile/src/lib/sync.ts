@@ -4,12 +4,13 @@ import NetInfo from '@react-native-community/netinfo';
 import { flushOutbox, syncInbox } from './gmail/gmail';
 import { scheduleMeetingReminders } from './notifications';
 import { migrate } from './db';
+import { processNewEmails } from './mail/agent';
 
 export const SYNC_TASK = 'shotor-sync';
 
-/** Online work: send queued mail, refresh inbox. Offline work: refresh meeting reminders. */
+/** Online work: send queued mail, refresh inbox, let the email assistant sort new mail. Offline work: meeting reminders. */
 export async function runSync() {
-  const results = await Promise.allSettled([flushOutbox(), syncInbox(), scheduleMeetingReminders()]);
+  const results = await Promise.allSettled([flushOutbox(), syncInbox().then(() => processNewEmails()), scheduleMeetingReminders()]);
   return results;
 }
 

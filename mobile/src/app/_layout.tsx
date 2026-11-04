@@ -65,6 +65,7 @@ export default function RootLayout() {
     const openFromNotification = (r: Notifications.NotificationResponse) => {
       const data = r.notification.request.content.data as { kind?: string; url?: string } | undefined;
       if (data?.kind === 'brief') router.navigate('/');
+      else if (data?.kind === 'mail') router.navigate('/mail');
       else if ((data?.kind === 'meeting' || data?.kind === 'report') && data.url) router.push(data.url as never);
     };
     const tap = Notifications.addNotificationResponseReceivedListener((r) => {

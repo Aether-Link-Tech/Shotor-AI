@@ -31,14 +31,14 @@ The welcome screen walks you through it:
 | **Calendar** | Month view of your meetings. Type a meeting in plain words (*"Board call with Ali tomorrow 3pm at HQ"*) or tap **New meeting**. Each meeting can have its own reminder. |
 | **Reports** | Tap **New report**, choose a PDF, Word, PowerPoint or Excel file (or paste text), and get a short summary with key numbers, risks and decisions needed |
 | **Ask AI** | Ask questions such as *"What do I need to decide today?"* or *"What were the risks in the Q3 report?"* |
-| **Mail** | Connect Gmail once. Open an email and tap **Draft reply with AI**, edit it, then **Approve & send**. If you are offline, the reply waits in the Outbox and sends by itself when you are back online. |
+| **Mail** | Connect Gmail once. Shotor summarises each new email and lists the ones that **need your answer**, with ready answers: tap one and Shotor writes the reply for you to check and send. Turn on **Settings → Answer routine email automatically** to let Shotor reply by itself to simple mail, such as thank-you notes. It always asks you about money, contracts, decisions and complaints, and each automatic reply waits 10 minutes so you can cancel it. If you are offline, replies wait in the Outbox. |
 | **Settings** (gear icon, top right) | AI speed test, reminder time, daily brief time, AI model, app lock, erase data |
 
 ## Good to know
 - After installing, run **Settings → AI speed test** once. It picks the fastest settings for your phone.
 - Reports are written in the background: you can leave the app or lock the phone. You get a **"Summary ready"** notification when it is done.
 - On Xiaomi, Oppo, Vivo, Realme and some Samsung phones, set **Settings → Apps → Shotor AI → Battery → Unrestricted** so the phone does not stop background work.
-- **Nothing is ever sent without your approval.** Always read AI drafts before sending.
+- Unless you turn on automatic replies, **nothing is sent without your approval**. Always read AI drafts before sending.
 - Updates: install the newer `ShotorAI-v1.x.x.apk` the same way, over the old app. Your data stays.
 - To remove everything, use **Settings → Erase all data on this phone**, or uninstall the app.
 

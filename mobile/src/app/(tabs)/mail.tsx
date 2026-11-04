@@ -9,6 +9,8 @@ import { db, getSetting, useLive } from '../../lib/db';
 import { connectGmail, isGmailConfigured } from '../../lib/gmail/auth';
 import { deleteOutbox, flushOutbox, retryOutbox, syncInbox, type OutboxRow } from '../../lib/gmail/gmail';
 import type { Email } from '../../lib/assistant';
+import { NEEDS_ANSWER_SQL, dismissEmail, mailSettings } from '../../lib/mail/agent';
+import { parseOptions } from '../../lib/mail/rules';
 import { colors, type } from '../../theme';
 
 export default function Mail() {
@@ -18,7 +20,15 @@ export default function Mail() {
   const outbox = useLive(['outbox'], () =>
     db.getAllSync<OutboxRow>(`SELECT * FROM outbox WHERE status != 'sent' OR sent_at > ? ORDER BY created_at DESC LIMIT 30`, Date.now() - 2 * 86400000),
   );
+  const needsAnswer = useLive(['emails', 'outbox'], () => db.getAllSync<Email>(NEEDS_ANSWER_SQL));
+  const assistant = useLive(['settings'], () => mailSettings());
   const [online, setOnline] = useState(true);
+  // Re-render every 30 s so "sending in N min" counts down.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 30000);
+    return () => clearInterval(t);
+  }, []);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState('');
 
@@ -57,7 +67,7 @@ export default function Mail() {
             <Text style={type.h2}>Connect Gmail</Text>
           </Row>
           <Text style={type.body}>
-            Read your recent email offline and let the AI draft replies. You approve every reply; if you are offline, it waits in the Outbox and sends automatically when you are back online.
+            Read your recent email offline. Shotor sorts new mail, summarises it and suggests answers; if you allow it in Settings, it also answers routine mail by itself. Replies wait in the Outbox when you are offline.
           </Text>
           {isGmailConfigured() ? (
             <Button title="Connect Gmail" onPress={connect} disabled={!online} />
@@ -83,6 +93,45 @@ export default function Mail() {
       </Row>
       {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
 
+      <Pressable onPress={() => router.push('/settings')}>
+        <Text style={type.small}>
+          Auto-reply to routine email: <Text style={{ fontWeight: '700', color: assistant.autoReply ? colors.success : colors.muted }}>{assistant.autoReply ? 'ON' : 'OFF'}</Text>
+          <Text style={{ color: colors.navySoft }}>  · change in Settings</Text>
+        </Text>
+      </Pressable>
+
+      {needsAnswer.length ? (
+        <>
+          <SectionTitle>Needs your answer ({needsAnswer.length})</SectionTitle>
+          {needsAnswer.map((e) => (
+            <Card key={e.id} style={{ borderLeftWidth: 4, borderLeftColor: e.category === 'important' ? colors.danger : colors.accent }}>
+              <Pressable onPress={() => router.push(`/mail/${e.id}`)}>
+                <Row style={{ justifyContent: 'space-between' }}>
+                  <Text style={[styles.from, { color: colors.ink, fontWeight: '700' }]} numberOfLines={1}>{e.from_name || e.from_addr}</Text>
+                  <Text style={type.tiny}>{formatDate(e.date)}</Text>
+                </Row>
+                <Text style={type.h3} numberOfLines={1}>{e.subject}</Text>
+                <Text style={[type.body, { fontSize: 14 }]}>{e.ai_summary || e.snippet}</Text>
+              </Pressable>
+              <Text style={type.tiny}>What should I answer?</Text>
+              <View style={styles.choices}>
+                {parseOptions(e.options).map((o) => (
+                  <Pressable key={o} style={styles.choice} onPress={() => router.push({ pathname: '/mail/[id]', params: { id: e.id, choice: o } })}>
+                    <Text style={styles.choiceText}>{o}</Text>
+                  </Pressable>
+                ))}
+                <Pressable style={styles.choice} onPress={() => router.push(`/mail/${e.id}`)}>
+                  <Text style={styles.choiceText}>Write my own…</Text>
+                </Pressable>
+                <Pressable style={[styles.choice, styles.choiceGhost]} onPress={() => dismissEmail(e.id)}>
+                  <Text style={[styles.choiceText, { color: colors.muted }]}>No answer needed</Text>
+                </Pressable>
+              </View>
+            </Card>
+          ))}
+        </>
+      ) : null}
+
       {outbox.length ? (
         <>
           <SectionTitle>Outbox {pending.length ? `(${pending.length})` : ''}</SectionTitle>
@@ -91,16 +140,21 @@ export default function Mail() {
               <Row style={{ justifyContent: 'space-between' }}>
                 <Text style={[type.h3, { flex: 1 }]} numberOfLines={1}>{o.subject}</Text>
                 <Pill
-                  label={{ queued: online ? 'SENDING SOON' : 'WAITING FOR INTERNET', sending: 'SENDING', sent: 'SENT', failed: 'FAILED', draft: 'DRAFT' }[o.status]}
-                  tone={o.status === 'sent' ? 'success' : o.status === 'failed' ? 'danger' : 'warn'}
+                  label={
+                    o.status === 'queued' && o.send_after && o.send_after > Date.now()
+                      ? `AUTO-REPLY IN ${Math.max(1, Math.ceil((o.send_after - Date.now()) / 60000))} MIN`
+                      : { queued: online ? 'SENDING SOON' : 'WAITING FOR INTERNET', sending: 'SENDING', sent: o.auto ? 'AUTO-REPLIED' : 'SENT', failed: 'FAILED', draft: 'DRAFT' }[o.status]
+                  }
+                  tone={o.status === 'sent' ? 'success' : o.status === 'failed' ? 'danger' : o.auto ? 'navy' : 'warn'}
                 />
               </Row>
               <Text style={type.small} numberOfLines={1}>To: {o.to_addr}</Text>
+              {o.auto ? <Text style={type.small} numberOfLines={3}>{o.body}</Text> : null}
               {o.status === 'failed' && o.error ? <Text style={[type.small, { color: colors.danger }]} numberOfLines={3}>{o.error}</Text> : null}
               {o.status === 'failed' || o.status === 'queued' ? (
                 <Row>
                   {o.status === 'failed' ? <Button small variant="secondary" title="Retry" onPress={() => retryOutbox(o.id)} /> : null}
-                  <Button small variant="ghost" title="Cancel" onPress={() => deleteOutbox(o.id)} />
+                  <Button small variant="ghost" title={o.auto ? 'Cancel auto-reply' : 'Cancel'} onPress={() => deleteOutbox(o.id)} />
                 </Row>
               ) : null}
             </Card>
@@ -123,8 +177,16 @@ export default function Mail() {
             </Row>
             <Text style={[type.h3, !e.unread && { fontWeight: '500' }]} numberOfLines={1}>{e.subject}</Text>
             <Row style={{ justifyContent: 'space-between' }}>
-              <Text style={[type.small, { flex: 1 }]} numberOfLines={2}>{e.snippet}</Text>
-              {e.replied ? <Pill label="REPLIED" tone="success" /> : null}
+              <Text style={[type.small, { flex: 1 }]} numberOfLines={2}>{e.ai_summary || e.snippet}</Text>
+              {e.replied ? (
+                <Pill label={e.handled === 'auto_replied' ? 'AUTO-REPLIED' : 'REPLIED'} tone="success" />
+              ) : e.handled === 'auto_replied' ? (
+                <Pill label="AUTO-REPLY QUEUED" tone="navy" />
+              ) : e.category === 'important' ? (
+                <Pill label="IMPORTANT" tone="danger" />
+              ) : e.category === 'no_reply' || e.is_bulk ? (
+                <Pill label="NO REPLY NEEDED" />
+              ) : null}
             </Row>
           </Pressable>
         ))
@@ -144,4 +206,8 @@ function formatDate(ms: number) {
 const styles = StyleSheet.create({
   mail: { backgroundColor: colors.card, borderRadius: 14, padding: 12, gap: 3, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
   from: { flex: 1, fontSize: 14, color: colors.muted },
+  choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  choice: { backgroundColor: '#E3E9F5', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
+  choiceGhost: { backgroundColor: 'transparent', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
+  choiceText: { color: colors.navy, fontSize: 13, fontWeight: '600' },
 });

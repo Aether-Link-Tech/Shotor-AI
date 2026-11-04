@@ -8,6 +8,7 @@ import { FromAetherLink } from '../components/Brand';
 import { useEngine } from '../components/ModelBanner';
 import { SpeedCard } from '../components/SpeedCard';
 import { BatteryCard } from '../components/BatteryCard';
+import { MailAssistantCard } from '../components/MailAssistantCard';
 import { db, getSetting, notify, setSetting, useLive } from '../lib/db';
 import { reminderMinutes, setReminderMinutes } from '../lib/calendar';
 import { scheduleDailyBriefNotification, scheduleMeetingReminders, setupNotifications } from '../lib/notifications';
@@ -127,6 +128,8 @@ export default function Settings() {
           )}
         </Row>
       </Card>
+
+      {gmail ? <MailAssistantCard /> : null}
 
       <SectionTitle>Privacy & security</SectionTitle>
       <Card>
