@@ -72,7 +72,10 @@ export async function detectServers(email: string): Promise<Detected> {
   } catch {
     // Offline or blocked: fall back to the usual names.
   }
-  const pick = (key: string): Detected => ({ provider: key, label: PRESETS[key].label, settings: { ...PRESETS[key] } });
+  const pick = (key: string): Detected => {
+    const { label, ...settings } = PRESETS[key];
+    return { provider: key, label, settings };
+  };
   if (/hostinger/.test(mx)) return pick('hostinger');
   if (/zoho/.test(mx)) return pick('zoho');
   if (/yahoodns/.test(mx)) return pick('yahoo');

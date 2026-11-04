@@ -31,8 +31,18 @@ The welcome screen walks you through it:
 | **Calendar** | Month view of your meetings. Type a meeting in plain words (*"Board call with Ali tomorrow 3pm at HQ"*) or tap **New meeting**. Each meeting can have its own reminder. |
 | **Reports** | Tap **New report**, choose a PDF, Word, PowerPoint or Excel file (or paste text), and get a short summary with key numbers, risks and decisions needed |
 | **Ask AI** | Ask questions such as *"What do I need to decide today?"* or *"What were the risks in the Q3 report?"* |
-| **Mail** | Connect Gmail once. Shotor summarises each new email and lists the ones that **need your answer**, with ready answers: tap one and Shotor writes the reply for you to check and send. Turn on **Settings → Answer routine email automatically** to let Shotor reply by itself to simple mail, such as thank-you notes. It always asks you about money, contracts, decisions and complaints, and each automatic reply waits 10 minutes so you can cancel it. If you are offline, replies wait in the Outbox. |
+| **Mail** | Connect your email once (see *Connecting your email* below). Shotor summarises each new email and lists the ones that **need your answer**, with ready answers: tap one and Shotor writes the reply for you to check and send. Turn on **Settings → Answer routine email automatically** to let Shotor reply by itself to simple mail, such as thank-you notes. It always asks you about money, contracts, decisions and complaints, and each automatic reply waits 10 minutes so you can cancel it. If you are offline, replies wait in the Outbox. |
 | **Settings** (gear icon, top right) | AI speed test, reminder time, daily brief time, AI model, app lock, erase data |
+
+## Connecting your email
+Open **Mail** and choose the button that fits your address:
+
+- **Work email** (for example `name@saibaan.org.pk`, or any company address hosted by Hostinger, cPanel, Zoho or similar): tap **Connect work email**, then type your email address and the **same password you use for webmail**. The server settings fill in automatically. Tap **Connect**.
+- **Gmail or Google Workspace** (`@gmail.com`, or a company address hosted by Google): tap **Connect Gmail / Google** and sign in with Google.
+
+If you see **"Wrong email or password"**, log in to your webmail once to check the password. If your mail provider uses different server names, tap **Change server settings** and copy them from the provider's help page.
+
+Your password is stored encrypted on the phone and is only sent to your own mail server. Replies you send also appear in your webmail's **Sent** folder.
 
 ## Good to know
 - After installing, run **Settings → AI speed test** once. It picks the fastest settings for your phone.
