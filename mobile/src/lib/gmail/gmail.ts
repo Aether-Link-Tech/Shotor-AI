@@ -2,6 +2,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { accessToken, AuthExpiredError, isGmailConnected } from './auth';
 import { db, notify, setSetting } from '../db';
 import { bytesToBase64, fromBase64Url, toBase64Url, utf8Encode } from '../encoding';
+import { isAutomaticMail } from '../mail/rules';
 
 const API = 'https://gmail.googleapis.com/gmail/v1/users/me';
 
@@ -76,8 +77,8 @@ export async function syncInbox(): Promise<number> {
     const plain = findBody(msg.payload, 'text/plain');
     const body = (plain ?? htmlToText(findBody(msg.payload, 'text/html') ?? msg.snippet ?? '')).slice(0, 50000);
     db.runSync(
-      `INSERT OR REPLACE INTO emails (id, thread_id, from_name, from_addr, to_addr, subject, snippet, body, date, unread, message_id_header, references_header)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT OR REPLACE INTO emails (id, thread_id, from_name, from_addr, to_addr, subject, snippet, body, date, unread, message_id_header, references_header, is_bulk)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       id,
       msg.threadId,
       from.name,
@@ -90,6 +91,7 @@ export async function syncInbox(): Promise<number> {
       unread,
       headers['message-id'] ?? null,
       headers['references'] ?? null,
+      isAutomaticMail(headers, from.addr) || (msg.labelIds ?? []).some((l: string) => /^CATEGORY_(PROMOTIONS|SOCIAL|UPDATES|FORUMS)$/.test(l)) ? 1 : 0,
     );
     added++;
   }
@@ -139,12 +141,25 @@ export type OutboxRow = {
   attempts: number;
   created_at: number;
   sent_at: number | null;
+  send_after: number | null;
+  auto: number;
 };
 
 /** Saves the approved reply to the Outbox. It is sent now if online, otherwise as soon as the phone is back online. */
-export function queueReply(o: { emailId: string | null; threadId: string | null; to: string; subject: string; body: string; inReplyTo: string | null; references: string | null }) {
+export function queueReply(o: {
+  emailId: string | null;
+  threadId: string | null;
+  to: string;
+  subject: string;
+  body: string;
+  inReplyTo: string | null;
+  references: string | null;
+  /** Automatic reply: wait this long before sending so the owner can cancel. */
+  delayMs?: number;
+}) {
+  const auto = o.delayMs !== undefined;
   const r = db.runSync(
-    `INSERT INTO outbox (email_id, thread_id, to_addr, subject, body, in_reply_to, references_header, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'queued', ?)`,
+    `INSERT INTO outbox (email_id, thread_id, to_addr, subject, body, in_reply_to, references_header, status, created_at, send_after, auto) VALUES (?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?)`,
     o.emailId,
     o.threadId,
     o.to,
@@ -153,9 +168,12 @@ export function queueReply(o: { emailId: string | null; threadId: string | null;
     o.inReplyTo,
     o.references,
     Date.now(),
+    auto ? Date.now() + (o.delayMs ?? 0) : null,
+    auto ? 1 : 0,
   );
   notify('outbox');
-  flushOutbox().catch(() => {});
+  if (auto) setTimeout(() => flushOutbox().catch(() => {}), (o.delayMs ?? 0) + 1000);
+  else flushOutbox().catch(() => {});
   return r.lastInsertRowId;
 }
 
@@ -169,7 +187,8 @@ export async function flushOutbox(): Promise<{ sent: number; failed: number }> {
     if (!(await isOnline()) || !(await isGmailConnected())) return { sent, failed };
     // Anything stuck in "sending" (app killed mid-send) goes back to the queue.
     db.runSync(`UPDATE outbox SET status = 'queued' WHERE status = 'sending'`);
-    const rows = db.getAllSync<OutboxRow>(`SELECT * FROM outbox WHERE status = 'queued' ORDER BY created_at`);
+    // Automatic replies wait until send_after so the owner has time to cancel them.
+    const rows = db.getAllSync<OutboxRow>(`SELECT * FROM outbox WHERE status = 'queued' AND (send_after IS NULL OR send_after <= ?) ORDER BY created_at`, Date.now());
     for (const row of rows) {
       db.runSync(`UPDATE outbox SET status = 'sending', attempts = attempts + 1 WHERE id = ?`, row.id);
       notify('outbox');

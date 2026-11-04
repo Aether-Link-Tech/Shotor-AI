@@ -71,6 +71,16 @@ const MIGRATIONS: string[] = [
   ALTER TABLE reports ADD COLUMN error TEXT;
   UPDATE reports SET status = 'error', error = 'Not summarized' WHERE summary IS NULL;
   `,
+  // 3: the email assistant sorts, summarises and (if allowed) answers routine mail by itself.
+  `
+  ALTER TABLE emails ADD COLUMN is_bulk INTEGER NOT NULL DEFAULT 0;  -- newsletter / no-reply / automatic mail: never answered
+  ALTER TABLE emails ADD COLUMN category TEXT;                       -- 'important' | 'routine' | 'no_reply' (NULL = not sorted yet)
+  ALTER TABLE emails ADD COLUMN ai_summary TEXT;
+  ALTER TABLE emails ADD COLUMN options TEXT;                        -- JSON list of short answer choices for the owner
+  ALTER TABLE emails ADD COLUMN handled TEXT;                        -- 'asked' | 'auto_replied' | 'skipped' | 'dismissed'
+  ALTER TABLE outbox ADD COLUMN send_after INTEGER;                  -- automatic replies wait so the owner can cancel
+  ALTER TABLE outbox ADD COLUMN auto INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
 
 export function migrate() {

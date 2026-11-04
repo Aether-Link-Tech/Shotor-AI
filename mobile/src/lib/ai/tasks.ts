@@ -188,16 +188,78 @@ export async function draftEmailReply(email: EmailForReply, instructions: string
   );
 }
 
-export async function triageEmail(email: EmailForReply): Promise<'urgent' | 'reply' | 'fyi'> {
+export type EmailCategory = 'important' | 'routine' | 'no_reply';
+export type EmailTriage = { summary: string; category: EmailCategory; options: string[] };
+
+const TRIAGE_SCHEMA = {
+  type: 'object',
+  properties: {
+    summary: { type: 'string' },
+    category: { type: 'string', enum: ['important', 'routine', 'no_reply'] },
+    options: { type: 'array', items: { type: 'string' }, maxItems: 3 },
+  },
+  required: ['summary', 'category', 'options'],
+  additionalProperties: false,
+};
+
+/** Sorts an email, summarises it in a sentence or two, and suggests up to 3 answers the owner can pick. */
+export async function triageEmail(email: EmailForReply): Promise<EmailTriage> {
+  const owner = userName() || 'the owner';
   const out = await generate(
     [
-      { role: 'system', content: `Classify the email for a CEO. Answer with exactly one word: URGENT, REPLY or FYI. ${SAFETY}` },
-      { role: 'user', content: `<email>\nFrom: ${email.fromName} <${email.fromAddr}>\nSubject: ${email.subject}\n\n${email.body.slice(0, 1500)}\n</email>` },
+      { role: 'system', content: `You are the email assistant of ${owner}, a busy executive. You sort incoming email and summarise it. ${SAFETY}` },
+      {
+        role: 'user',
+        content:
+          `Sort and summarise this email. Reply in JSON with:\n` +
+          `- "summary": one or two plain sentences: who wants what, with any amount or deadline copied exactly.\n` +
+          `- "category": "important" if it needs ${owner}'s decision, knowledge or personal answer (money, prices, contracts, deals, staff, legal, complaints, problems, deadlines, meeting requests, anything confidential or unclear); ` +
+          `"routine" only if a short polite acknowledgement fully answers it without deciding, sharing or promising anything (thanks, "received", "noted", a confirmation of something already agreed); ` +
+          `"no_reply" for newsletters, notifications, receipts, adverts and automatic messages. When unsure, choose "important".\n` +
+          `- "options": up to 3 short answers ${owner} could choose, each under 12 words (for example "Accept and suggest a time", "Decline politely"); empty for "no_reply".\n\n` +
+          `<email>\nFrom: ${email.fromName} <${email.fromAddr}>\nSubject: ${email.subject}\n\n${email.body.slice(0, 3000)}\n</email>`,
+      },
     ],
-    { maxTokens: 4, temperature: 0 },
+    { maxTokens: 260, temperature: 0.1, jsonSchema: TRIAGE_SCHEMA },
   );
-  const w = out.toUpperCase();
-  return w.includes('URGENT') ? 'urgent' : w.includes('REPLY') ? 'reply' : 'fyi';
+  try {
+    const v = JSON.parse(out) as Partial<EmailTriage>;
+    const category: EmailCategory = v.category === 'routine' || v.category === 'no_reply' ? v.category : 'important';
+    return {
+      summary: String(v.summary ?? '').trim().slice(0, 400),
+      category,
+      options: (Array.isArray(v.options) ? v.options : []).map((o) => String(o).trim()).filter(Boolean).slice(0, 3),
+    };
+  } catch {
+    // Unreadable answer: treat as important so the owner sees it.
+    return { summary: '', category: 'important', options: [] };
+  }
+}
+
+/**
+ * A short, neutral acknowledgement sent automatically for routine mail. It must not decide,
+ * promise or share anything; the app checks it (mail/rules.ts) before it may be sent.
+ */
+export async function draftAutoReply(email: EmailForReply, ownerNote: string) {
+  const owner = userName() || 'the owner';
+  return generate(
+    [
+      {
+        role: 'system',
+        content: `You write short automatic email replies on behalf of ${owner}. ${SAFETY} Never agree to, decide, promise or share anything.`,
+      },
+      {
+        role: 'user',
+        content:
+          `Write a short, warm reply (2 to 4 sentences) to this email. Only thank the sender and acknowledge the message. ` +
+          `Do not give any numbers, dates, prices, information or promises. If they ask for something, say ${owner} will get back to them personally.` +
+          (ownerNote.trim() ? `\nAlso follow this note from ${owner}: ${ownerNote.trim().slice(0, 300)}` : '') +
+          `\nReturn only the reply body, signed "${owner}".\n\n` +
+          `<email>\nFrom: ${email.fromName} <${email.fromAddr}>\nSubject: ${email.subject}\n\n${email.body.slice(0, 3000)}\n</email>`,
+      },
+    ],
+    { maxTokens: 200, temperature: 0.3 },
+  );
 }
 
 /* ------------------------------ meeting prep ------------------------------- */
