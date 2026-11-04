@@ -13,6 +13,8 @@ import { db, getSetting, notify, setSetting, useLive } from '../lib/db';
 import { reminderMinutes, setReminderMinutes } from '../lib/calendar';
 import { scheduleDailyBriefNotification, scheduleMeetingReminders, setupNotifications } from '../lib/notifications';
 import { disconnectGmail } from '../lib/gmail/auth';
+import { mailAccount, mailProvider } from '../lib/mail/account';
+import { disconnectImap } from '../lib/mail/imap';
 import { colors, type } from '../theme';
 
 const REMINDER_OPTIONS = [5, 10, 15, 30, 60, -1];
@@ -24,7 +26,7 @@ export default function Settings() {
   const lock = useLive(['settings'], () => getSetting('lock.enabled', '0') === '1');
   const reminder = useLive(['settings', 'calendar'], reminderMinutes);
   const briefTime = useLive(['settings'], () => getSetting('brief.time', '08:00'));
-  const gmail = useLive(['settings', 'emails'], () => getSetting('google.email'));
+  const gmail = useLive(['settings', 'emails'], () => mailAccount());
   const [nameDraft, setNameDraft] = useState(name);
 
   async function toggleLock(v: boolean) {
@@ -120,7 +122,7 @@ export default function Settings() {
         <Row style={{ justifyContent: 'space-between' }}>
           <Text style={[type.body, { flex: 1 }]} numberOfLines={1}>{gmail || 'Not connected'}</Text>
           {gmail ? (
-            <Text style={styles.link} onPress={() => Alert.alert('Disconnect Gmail?', 'Cached email and the outbox stay on the phone until you erase them.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Disconnect', style: 'destructive', onPress: () => disconnectGmail() }])}>
+            <Text style={styles.link} onPress={() => Alert.alert('Disconnect email?', 'Cached email and the outbox stay on the phone until you erase them.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Disconnect', style: 'destructive', onPress: () => (mailProvider() === 'imap' ? disconnectImap() : disconnectGmail()) }])}>
               Disconnect
             </Text>
           ) : (

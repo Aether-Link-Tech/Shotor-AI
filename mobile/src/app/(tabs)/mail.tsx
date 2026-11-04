@@ -10,11 +10,13 @@ import { connectGmail, isGmailConfigured } from '../../lib/gmail/auth';
 import { deleteOutbox, flushOutbox, retryOutbox, syncInbox, type OutboxRow } from '../../lib/gmail/gmail';
 import type { Email } from '../../lib/assistant';
 import { NEEDS_ANSWER_SQL, dismissEmail, mailSettings } from '../../lib/mail/agent';
+import { mailAccount } from '../../lib/mail/account';
+import { imapSupported } from '../../lib/mail/imap';
 import { parseOptions } from '../../lib/mail/rules';
 import { colors, type } from '../../theme';
 
 export default function Mail() {
-  const account = useLive(['emails', 'settings'], () => getSetting('google.email'));
+  const account = useLive(['emails', 'settings'], () => mailAccount());
   const lastSync = useLive(['emails', 'settings'], () => Number(getSetting('mail.lastSync', '0')));
   const emails = useLive(['emails'], () => db.getAllSync<Email>('SELECT * FROM emails ORDER BY date DESC LIMIT 100'));
   const outbox = useLive(['outbox'], () =>
@@ -64,16 +66,19 @@ export default function Mail() {
         <Card>
           <Row>
             <MailIcon color={colors.navy} />
-            <Text style={type.h2}>Connect Gmail</Text>
+            <Text style={type.h2}>Connect your email</Text>
           </Row>
           <Text style={type.body}>
             Read your recent email offline. Shotor sorts new mail, summarises it and suggests answers; if you allow it in Settings, it also answers routine mail by itself. Replies wait in the Outbox when you are offline.
           </Text>
           {isGmailConfigured() ? (
-            <Button title="Connect Gmail" onPress={connect} disabled={!online} />
+            <Button title="Connect Gmail / Google" onPress={connect} disabled={!online} />
           ) : (
             <Text style={[type.small, { color: colors.warn }]}>Gmail is not enabled in this build. Ask your administrator to add the Google client ID.</Text>
           )}
+          {imapSupported() ? (
+            <Button title="Connect work email (Hostinger, company mail)" variant="secondary" onPress={() => router.push('/mail/connect')} disabled={!online} />
+          ) : null}
           {!online ? <Text style={type.small}>Connecting needs internet once.</Text> : null}
           {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
         </Card>

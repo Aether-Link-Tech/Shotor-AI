@@ -13,14 +13,14 @@ const NAVY = '#0A1F44';
 const config: ExpoConfig = {
   name: 'Shotor AI',
   slug: 'shotor-ai',
-  version: '1.3.0',
+  version: '1.4.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
   scheme: googleScheme ? ['shotor', googleScheme] : 'shotor',
   userInterfaceStyle: 'light',
   ios: {
     bundleIdentifier: 'com.aetherlink.shotor',
-    buildNumber: '8',
+    buildNumber: '9',
     supportsTablet: true,
     deploymentTarget: '16.0',
     infoPlist: {
@@ -29,7 +29,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: 'com.aetherlink.shotor',
-    versionCode: 8,
+    versionCode: 9,
     allowBackup: false, // the AI model is GBs and data is private; never back it up to the cloud
     adaptiveIcon: {
       backgroundColor: '#FFFFFF',
@@ -67,7 +67,14 @@ const config: ExpoConfig = {
     [
       'expo-build-properties',
       {
-        android: { minSdkVersion: 26, enableMinifyInReleaseBuilds: false, enableShrinkResourcesInReleaseBuilds: false, useLegacyPackaging: true },
+        android: {
+          minSdkVersion: 26,
+          enableMinifyInReleaseBuilds: false,
+          enableShrinkResourcesInReleaseBuilds: false,
+          useLegacyPackaging: true,
+          // Both JavaMail jars (company email) carry these two notices; keep one copy of each.
+          packagingOptions: { pickFirst: ['META-INF/LICENSE.md', 'META-INF/NOTICE.md'] },
+        },
       },
     ],
   ],

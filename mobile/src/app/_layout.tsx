@@ -106,6 +106,7 @@ export default function RootLayout() {
         <Stack.Screen name="report/new" options={{ title: 'New report' }} />
         <Stack.Screen name="report/[id]" options={{ title: 'Report' }} />
         <Stack.Screen name="mail/[id]" options={{ title: 'Email' }} />
+        <Stack.Screen name="mail/connect" options={{ title: 'Connect work email' }} />
         <Stack.Screen name="meeting/[id]" options={{ title: 'Meeting' }} />
         <Stack.Screen name="model" options={{ title: 'AI model' }} />
         <Stack.Screen name="settings" options={{ title: 'Settings' }} />

@@ -1,0 +1,21 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.aetherlink.shotor'
+version = '1.0.0'
+
+android {
+  namespace "expo.modules.shotormail"
+  defaultConfig {
+    versionCode 1
+    versionName "1.0.0"
+  }
+}
+
+dependencies {
+  // JavaMail for Android: IMAP (read the inbox) and SMTP (send) for company mail servers such as Hostinger.
+  implementation 'com.sun.mail:android-mail:1.6.8'
+  implementation 'com.sun.mail:android-activation:1.6.8'
+}

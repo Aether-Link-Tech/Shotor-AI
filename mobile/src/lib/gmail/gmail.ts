@@ -3,6 +3,11 @@ import { accessToken, AuthExpiredError, isGmailConnected } from './auth';
 import { db, notify, setSetting } from '../db';
 import { bytesToBase64, fromBase64Url, toBase64Url, utf8Encode } from '../encoding';
 import { isAutomaticMail } from '../mail/rules';
+import { htmlToText } from '../mail/text';
+import { mailProvider } from '../mail/account';
+import { sendImap, syncImapInbox } from '../mail/imap';
+
+export { htmlToText };
 
 const API = 'https://gmail.googleapis.com/gmail/v1/users/me';
 
@@ -36,29 +41,19 @@ export function findBody(p: Part, mime: string): string | null {
   return null;
 }
 
-export function htmlToText(html: string) {
-  return html
-    .replace(/<(style|script)[\s\S]*?<\/\1>/gi, '')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/(p|div|tr|li|h\d)>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
 
 export function parseFrom(v: string) {
   const m = v.match(/^\s*"?([^"<]*)"?\s*<([^>]+)>/);
   return m ? { name: m[1].trim() || m[2], addr: m[2].trim() } : { name: v.trim(), addr: v.trim() };
 }
 
-/** Pulls the last 7 days of inbox mail into the local database for offline reading. */
+/** Pulls the last 7 days of inbox mail into the local database, from Gmail or from work email (IMAP). */
 export async function syncInbox(): Promise<number> {
+  if (mailProvider() === 'imap') return syncImapInbox();
+  return syncGmailInbox();
+}
+
+async function syncGmailInbox(): Promise<number> {
   if (!(await isGmailConnected()) || !(await isOnline())) return 0;
   const list = await gmailFetch(`/messages?maxResults=40&q=${encodeURIComponent('in:inbox newer_than:7d')}`);
   const ids: string[] = (list.messages ?? []).map((m: { id: string }) => m.id);
@@ -184,7 +179,8 @@ export async function flushOutbox(): Promise<{ sent: number; failed: number }> {
   let sent = 0;
   let failed = 0;
   try {
-    if (!(await isOnline()) || !(await isGmailConnected())) return { sent, failed };
+    const provider = mailProvider();
+    if (!provider || !(await isOnline()) || (provider === 'gmail' && !(await isGmailConnected()))) return { sent, failed };
     // Anything stuck in "sending" (app killed mid-send) goes back to the queue.
     db.runSync(`UPDATE outbox SET status = 'queued' WHERE status = 'sending'`);
     // Automatic replies wait until send_after so the owner has time to cancel them.
@@ -193,14 +189,18 @@ export async function flushOutbox(): Promise<{ sent: number; failed: number }> {
       db.runSync(`UPDATE outbox SET status = 'sending', attempts = attempts + 1 WHERE id = ?`, row.id);
       notify('outbox');
       try {
-        const raw = toBase64Url(buildMime({ to: row.to_addr, subject: row.subject, body: row.body, inReplyTo: row.in_reply_to, references: row.references_header }));
-        await gmailFetch('/messages/send', { method: 'POST', body: JSON.stringify(row.thread_id ? { raw, threadId: row.thread_id } : { raw }) });
+        if (provider === 'imap') {
+          await sendImap({ to: row.to_addr, subject: row.subject, body: row.body, inReplyTo: row.in_reply_to, references: row.references_header });
+        } else {
+          const raw = toBase64Url(buildMime({ to: row.to_addr, subject: row.subject, body: row.body, inReplyTo: row.in_reply_to, references: row.references_header }));
+          await gmailFetch('/messages/send', { method: 'POST', body: JSON.stringify(row.thread_id ? { raw, threadId: row.thread_id } : { raw }) });
+        }
         db.runSync(`UPDATE outbox SET status = 'sent', sent_at = ?, error = NULL WHERE id = ?`, Date.now(), row.id);
         if (row.email_id) db.runSync('UPDATE emails SET replied = 1 WHERE id = ?', row.email_id);
         sent++;
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        const network = /network|fetch|timed? ?out/i.test(msg);
+        const network = /network|fetch|timed? ?out|reach the mail server|internet connection/i.test(msg);
         // Network problems: retry later. Other errors: retry a few times, then show as failed.
         const giveUp = !network && (e instanceof AuthExpiredError || row.attempts + 1 >= 5);
         db.runSync(`UPDATE outbox SET status = ?, error = ? WHERE id = ?`, giveUp ? 'failed' : 'queued', msg, row.id);

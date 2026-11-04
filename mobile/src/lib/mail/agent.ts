@@ -6,6 +6,7 @@ import { queueReply } from '../gmail/gmail';
 import { beginWork, endWork, updateWork } from '../background';
 import { autoReplyProblem, isSensitive } from './rules';
 import type { Email } from '../assistant';
+import { mailAccount } from './account';
 
 /**
  * The email assistant. For each new email it:
@@ -74,7 +75,7 @@ export async function processNewEmails(): Promise<{ asked: number; auto: number 
     );
     if (!pending.length) return result;
 
-    const me = getSetting('google.email', '').toLowerCase();
+    const me = (mailAccount() ?? '').toLowerCase();
     const owner = getSetting('user.name', '').trim();
     const s = mailSettings();
     const autoSince = Number(getSetting('mail.autoSince', '0'));
