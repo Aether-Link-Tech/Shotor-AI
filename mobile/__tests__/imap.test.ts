@@ -15,7 +15,15 @@ describe('work email server detection', () => {
     expect(d.label).toBe('Hostinger');
     expect(d.settings).toEqual({ imapHost: 'imap.hostinger.com', imapPort: 993, imapSecurity: 'ssl', smtpHost: 'smtp.hostinger.com', smtpPort: 465, smtpSecurity: 'ssl' });
     // Only the domain is looked up, never the address.
-    expect(((global as any).fetch as jest.Mock).mock.calls[0][0]).toBe('https://dns.google/resolve?name=saibaan.org.pk&type=MX');
+    expect(((global as any).fetch as jest.Mock).mock.calls[0][0]).toBe('https://cloudflare-dns.com/dns-query?name=saibaan.org.pk&type=MX');
+  });
+
+  it('tries the next DNS service when one is blocked (dns.google is blocked on some networks)', async () => {
+    (global as any).fetch = jest.fn(async (url: string) => {
+      if (url.includes('cloudflare')) throw new Error('blocked');
+      return { json: async () => ({ Answer: [{ data: '5 mx1.hostinger.com.' }] }) };
+    });
+    expect((await detectServers('aqsa.riaz@saibaan.org.pk')).label).toBe('Hostinger');
   });
 
   it('sends Google mailboxes to Google sign-in', async () => {

@@ -57,25 +57,50 @@ function genericFor(domain: string): Detected {
   };
 }
 
+const pick = (key: string): Detected => {
+  const { label, ...settings } = PRESETS[key];
+  return { provider: key, label, settings };
+};
+
+/** One-tap choices on the connect screen, for when detection cannot tell. */
+export function serverChoices(email: string): Detected[] {
+  const domain = email.split('@')[1]?.trim().toLowerCase() || 'example.com';
+  return [pick('hostinger'), pick('zoho'), pick('yahoo'), { ...genericFor(domain), label: 'Other (mail.' + domain + ')' }];
+}
+
+/** Public DNS-over-HTTPS services, tried in turn (some networks block one of them). */
+const DOH = [
+  (d: string) => ({ url: `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(d)}&type=MX`, headers: { accept: 'application/dns-json' } }),
+  (d: string) => ({ url: `https://dns.google/resolve?name=${encodeURIComponent(d)}&type=MX`, headers: {} }),
+];
+
+async function lookupMx(domain: string): Promise<string> {
+  for (const make of DOH) {
+    const { url, headers } = make(domain);
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), 5000);
+    try {
+      const r = await fetch(url, { headers, signal: abort.signal });
+      const j = (await r.json()) as { Answer?: { data: string }[] };
+      const mx = (j.Answer ?? []).map((a) => a.data).join(' ').toLowerCase();
+      if (mx) return mx;
+    } catch {
+      // Blocked, offline or slow: try the next service.
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  return '';
+}
+
 /**
  * Picks server settings from the domain's mail (MX) records. Only the domain is looked up
- * (never the address or password), through Google's public DNS.
+ * (never the address or password), through public DNS (Cloudflare, then Google).
  */
 export async function detectServers(email: string): Promise<Detected> {
   const domain = email.split('@')[1]?.trim().toLowerCase() ?? '';
   if (!domain) return genericFor('example.com');
-  let mx = '';
-  try {
-    const r = await fetch(`https://dns.google/resolve?name=${encodeURIComponent(domain)}&type=MX`);
-    const j = (await r.json()) as { Answer?: { data: string }[] };
-    mx = (j.Answer ?? []).map((a) => a.data).join(' ').toLowerCase();
-  } catch {
-    // Offline or blocked: fall back to the usual names.
-  }
-  const pick = (key: string): Detected => {
-    const { label, ...settings } = PRESETS[key];
-    return { provider: key, label, settings };
-  };
+  const mx = await lookupMx(domain);
   if (/hostinger/.test(mx)) return pick('hostinger');
   if (/zoho/.test(mx)) return pick('zoho');
   if (/yahoodns/.test(mx)) return pick('yahoo');

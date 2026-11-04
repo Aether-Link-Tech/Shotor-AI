@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { Button, Card, Row, Screen } from '../../components/ui';
 import { MailIcon } from '../../components/Icons';
 import { getSetting } from '../../lib/db';
-import { connectImap, detectServers, imapSupported, type Detected, type Security, type ServerSettings } from '../../lib/mail/imap';
+import { connectImap, detectServers, imapSupported, serverChoices, type Detected, type Security, type ServerSettings } from '../../lib/mail/imap';
 import { runSync } from '../../lib/sync';
 import { colors, radius, type } from '../../theme';
 
@@ -105,6 +105,21 @@ export default function ConnectWorkEmail() {
               Server: <Text style={{ fontWeight: '700', color: colors.ink }}>{detected.label}</Text> ({servers?.imapHost})
             </Text>
             {detected.note ? <Text style={[type.small, { color: colors.warn }]}>{detected.note}</Text> : null}
+            <Text style={type.tiny}>Not right? Choose your email provider:</Text>
+            <Row style={{ flexWrap: 'wrap' }}>
+              {serverChoices(email).map((c) => (
+                <Pressable
+                  key={c.label}
+                  onPress={() => {
+                    setDetected(c);
+                    setServers(c.settings);
+                  }}
+                  style={[styles.chip, servers?.imapHost === c.settings.imapHost && styles.chipOn]}
+                >
+                  <Text style={[styles.chipText, servers?.imapHost === c.settings.imapHost && { color: colors.white }]}>{c.label}</Text>
+                </Pressable>
+              ))}
+            </Row>
             <Text style={styles.link} onPress={() => setAdvanced(!advanced)}>
               {advanced ? 'Hide server settings' : 'Change server settings'}
             </Text>
