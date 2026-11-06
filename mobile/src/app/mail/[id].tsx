@@ -10,12 +10,16 @@ import { isOnline, queueReply } from '../../lib/gmail/gmail';
 import type { Email } from '../../lib/assistant';
 import { dismissEmail } from '../../lib/mail/agent';
 import { parseOptions } from '../../lib/mail/rules';
+import { EmailExtras } from '../../components/EmailExtras';
+import { cloudStatus } from '../../lib/ai/cloud';
 import { colors, radius, type } from '../../theme';
 
 export default function MailDetail() {
   // "choice": an answer the owner tapped in the Mail tab; the reply is drafted from it straight away.
   const { id, choice } = useLocalSearchParams<{ id: string; choice?: string }>();
-  const { model } = useEngine();
+  const { model: phoneModel } = useEngine();
+  // Replies can be written by the online AI even before the phone model is downloaded.
+  const model = phoneModel || cloudStatus() === 'on';
   const email = useLive(['emails'], () => db.getFirstSync<Email>('SELECT * FROM emails WHERE id = ?', id));
   const [instructions, setInstructions] = useState('');
   const [draft, setDraft] = useState('');
@@ -98,6 +102,7 @@ export default function MailDetail() {
           <Text style={type.body}>{email.ai_summary}</Text>
         </Card>
       ) : null}
+      <EmailExtras email={email} />
       <Card>
         <Text style={[type.body, { fontSize: 14 }]} selectable>
           {showFull || body.length <= 2500 ? body : body.slice(0, 2500) + '…'}

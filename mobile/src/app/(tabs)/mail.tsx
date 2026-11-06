@@ -9,7 +9,11 @@ import { db, getSetting, useLive } from '../../lib/db';
 import { connectGmail, isGmailConfigured } from '../../lib/gmail/auth';
 import { deleteOutbox, flushOutbox, retryOutbox, syncInbox, type OutboxRow } from '../../lib/gmail/gmail';
 import type { Email } from '../../lib/assistant';
-import { NEEDS_ANSWER_SQL, dismissEmail, mailSettings } from '../../lib/mail/agent';
+import { NEEDS_ANSWER_SQL, clearMailSummary, dismissEmail, mailSettings } from '../../lib/mail/agent';
+import { REASON_LABEL } from '../../lib/mail/rules';
+import { parseReasons } from '../../components/EmailExtras';
+import { useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 import { mailAccount } from '../../lib/mail/account';
 import { imapSupported } from '../../lib/mail/imap';
 import { parseOptions } from '../../lib/mail/rules';
@@ -35,6 +39,8 @@ export default function Mail() {
   const [error, setError] = useState('');
 
   useEffect(() => NetInfo.addEventListener((s) => setOnline(!!s.isConnected && s.isInternetReachable !== false)), []);
+  // Opening Mail clears the "N emails waiting" notification.
+  useFocusEffect(useCallback(() => clearMailSummary(), []));
 
   async function sync() {
     setSyncing(true);
@@ -107,7 +113,7 @@ export default function Mail() {
 
       {needsAnswer.length ? (
         <>
-          <SectionTitle>Needs your answer ({needsAnswer.length})</SectionTitle>
+          <SectionTitle>Waiting for you ({needsAnswer.length})</SectionTitle>
           {needsAnswer.map((e) => (
             <Card key={e.id} style={{ borderLeftWidth: 4, borderLeftColor: e.category === 'important' ? colors.danger : colors.accent }}>
               <Pressable onPress={() => router.push(`/mail/${e.id}`)}>
@@ -117,6 +123,9 @@ export default function Mail() {
                 </Row>
                 <Text style={type.h3} numberOfLines={1}>{e.subject}</Text>
                 <Text style={[type.body, { fontSize: 14 }]}>{e.ai_summary || e.snippet}</Text>
+                {parseReasons(e.reasons).length ? (
+                  <Text style={[type.tiny, { color: colors.navy, fontWeight: '600' }]}>{parseReasons(e.reasons).map((r) => REASON_LABEL[r]).join('  ·  ')}</Text>
+                ) : null}
               </Pressable>
               <Text style={type.tiny}>What should I answer?</Text>
               <View style={styles.choices}>
@@ -137,10 +146,40 @@ export default function Mail() {
         </>
       ) : null}
 
-      {outbox.length ? (
+      {outbox.some((o) => o.auto) ? (
         <>
-          <SectionTitle>Outbox {pending.length ? `(${pending.length})` : ''}</SectionTitle>
-          {outbox.map((o) => (
+          <SectionTitle>Answered by Shotor</SectionTitle>
+          {outbox.filter((o) => o.auto).map((o) => (
+            <Card key={o.id}>
+              <Row style={{ justifyContent: 'space-between' }}>
+                <Text style={[type.h3, { flex: 1 }]} numberOfLines={1}>{o.subject}</Text>
+                <Pill
+                  label={
+                    o.status === 'queued' && o.send_after && o.send_after > Date.now()
+                      ? `AUTO-REPLY IN ${Math.max(1, Math.ceil((o.send_after - Date.now()) / 60000))} MIN`
+                      : { queued: online ? 'SENDING SOON' : 'WAITING FOR INTERNET', sending: 'SENDING', sent: o.auto ? 'AUTO-REPLIED' : 'SENT', failed: 'FAILED', draft: 'DRAFT' }[o.status]
+                  }
+                  tone={o.status === 'sent' ? 'success' : o.status === 'failed' ? 'danger' : o.auto ? 'navy' : 'warn'}
+                />
+              </Row>
+              <Text style={type.small} numberOfLines={1}>To: {o.to_addr}</Text>
+              {o.auto ? <Text style={type.small} numberOfLines={3}>{o.body}</Text> : null}
+              {o.status === 'failed' && o.error ? <Text style={[type.small, { color: colors.danger }]} numberOfLines={3}>{o.error}</Text> : null}
+              {o.status === 'failed' || o.status === 'queued' ? (
+                <Row>
+                  {o.status === 'failed' ? <Button small variant="secondary" title="Retry" onPress={() => retryOutbox(o.id)} /> : null}
+                  <Button small variant="ghost" title={o.auto ? 'Cancel auto-reply' : 'Cancel'} onPress={() => deleteOutbox(o.id)} />
+                </Row>
+              ) : null}
+            </Card>
+          ))}
+        </>
+      ) : null}
+
+      {outbox.some((o) => !o.auto) ? (
+        <>
+          <SectionTitle>Outbox {pending.filter((o) => !o.auto).length ? `(${pending.filter((o) => !o.auto).length})` : ''}</SectionTitle>
+          {outbox.filter((o) => !o.auto).map((o) => (
             <Card key={o.id}>
               <Row style={{ justifyContent: 'space-between' }}>
                 <Text style={[type.h3, { flex: 1 }]} numberOfLines={1}>{o.subject}</Text>
