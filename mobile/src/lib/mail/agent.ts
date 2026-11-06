@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { db, getSetting, notify, setSetting } from '../db';
 import { draftAutoReply, triageEmail, type EmailCategory } from '../ai/tasks';
 import { activeModel } from '../ai/models';
+import { cloudStatus } from '../ai/cloud';
 import { queueReply } from '../gmail/gmail';
 import { beginWork, endWork, updateWork } from '../background';
 import { autoReplyProblem, isSensitive } from './rules';
@@ -60,7 +61,7 @@ let running = false;
 
 export async function processNewEmails(): Promise<{ asked: number; auto: number }> {
   const result = { asked: 0, auto: 0 };
-  if (running || !activeModel()) return result;
+  if (running || (!activeModel() && cloudStatus() !== 'on')) return result;
   running = true;
   try {
     // First run: look at the last 24 hours only, not the whole 7-day inbox.

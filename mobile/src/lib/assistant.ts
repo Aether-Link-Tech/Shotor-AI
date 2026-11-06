@@ -2,6 +2,7 @@ import { db, dayKey, getSetting, notify, setSetting } from './db';
 import { meetingLine, todaysMeetings, upcomingMeetings } from './calendar';
 import { chatSystemPrompt, trimHistory, writeDailyBrief, writeMeetingPrep } from './ai/tasks';
 import { generate, type ChatMessage } from './ai/engine';
+import { fastGenerate } from './ai/cloud';
 
 export type Report = { id: number; title: string; source: string; original_text: string; summary: string | null; created_at: number };
 export type Email = {
@@ -70,7 +71,9 @@ export async function sendChatMessage(text: string, onToken: (t: string) => void
     .map((m) => ({ role: m.role, content: m.content }) as ChatMessage);
 
   try {
-    const answer = await generate([{ role: 'system', content: system }, ...trimHistory(history, system)], { maxTokens: 700, temperature: 0.5, onToken });
+    // Questions that bring in report content stay on the phone (reports never go online); others use the fast online AI.
+    const run = reports.length ? generate : fastGenerate;
+    const answer = await run([{ role: 'system', content: system }, ...trimHistory(history, system)], { maxTokens: 700, temperature: 0.5, onToken });
     db.runSync(`INSERT INTO chat_messages (role, content, created_at) VALUES ('assistant', ?, ?)`, answer || '(no answer)', Date.now());
     return answer;
   } finally {

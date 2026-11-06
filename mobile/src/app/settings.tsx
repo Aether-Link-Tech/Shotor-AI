@@ -8,6 +8,7 @@ import { FromAetherLink } from '../components/Brand';
 import { useEngine } from '../components/ModelBanner';
 import { SpeedCard } from '../components/SpeedCard';
 import { BatteryCard } from '../components/BatteryCard';
+import { CloudAiCard } from '../components/CloudAiCard';
 import { MailAssistantCard } from '../components/MailAssistantCard';
 import { db, getSetting, notify, setSetting, useLive } from '../lib/db';
 import { reminderMinutes, setReminderMinutes } from '../lib/calendar';
@@ -94,6 +95,7 @@ export default function Settings() {
         </Card>
       </Pressable>
 
+      <CloudAiCard />
       <SpeedCard />
       <BatteryCard />
 
