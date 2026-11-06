@@ -81,6 +81,16 @@ const MIGRATIONS: string[] = [
   ALTER TABLE outbox ADD COLUMN send_after INTEGER;                  -- automatic replies wait so the owner can cancel
   ALTER TABLE outbox ADD COLUMN auto INTEGER NOT NULL DEFAULT 0;
   `,
+  // 4: why an email needs the owner (files, senior sender, VIP, meeting…) and the owner's VIP list.
+  `
+  ALTER TABLE emails ADD COLUMN attachments TEXT;                    -- JSON [{name, mime, size, ref}]
+  ALTER TABLE emails ADD COLUMN reasons TEXT;                        -- JSON ['file','senior','vip','meeting','sensitive','ai']
+  CREATE TABLE IF NOT EXISTS vips (
+    addr TEXT PRIMARY KEY,           -- lower-case email address
+    name TEXT,
+    created_at INTEGER NOT NULL
+  );
+  `,
 ];
 
 export function migrate() {

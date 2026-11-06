@@ -24,6 +24,9 @@ import javax.mail.Store
 import javax.mail.UIDFolder
 import javax.mail.internet.InternetAddress
 import javax.mail.internet.MimeMessage
+import javax.mail.internet.MimeUtility
+import android.net.Uri
+import java.io.File
 import javax.mail.search.ComparisonTerm
 import javax.mail.search.ReceivedDateTerm
 import javax.net.ssl.SSLException
@@ -116,8 +119,44 @@ class ShotorMailModule : Module() {
                 "text" to text?.take(50000),
                 "html" to html?.take(200000),
                 "headers" to HEADERS.associate { h -> h.lowercase() to m.getHeader(h)?.firstOrNull() },
+                "attachments" to if (isKnown) null else mutableListOf<Map<String, Any?>>().also { attachments(m, "", it) },
               )
             }
+          } finally {
+            inbox.close(false)
+          }
+        } finally {
+          store.close()
+        }
+      }
+    }
+
+    /** Saves one attachment (found by its part path, e.g. "1" or "1.0") to the app cache and returns its file URI. */
+    AsyncFunction("attachment") { cfg: MailConfig, id: String, ref: String ->
+      friendly {
+        val bits = id.removePrefix("imap:").split(":")
+        if (bits.size != 2) throw MailError("This is not a work email.")
+        val validity = bits[0].toLong()
+        val uid = bits[1].toLong()
+        val context = appContext.reactContext ?: throw MailError("The app is not ready. Try again.")
+        val session = Session.getInstance(props(cfg))
+        val store = openStore(session, cfg)
+        try {
+          val inbox = store.getFolder("INBOX") as IMAPFolder
+          inbox.open(Folder.READ_ONLY)
+          try {
+            if (inbox.uidValidity != validity) throw MailError("The mailbox changed on the server. Sync and try again.")
+            val m = inbox.getMessageByUID(uid) ?: throw MailError("This email is no longer in the inbox.")
+            var part: Part = m
+            for (idx in ref.split(".").filter { it.isNotEmpty() }.map { it.toInt() }) {
+              part = (part.content as Multipart).getBodyPart(idx)
+            }
+            if (part.size > MAX_ATTACHMENT) throw MailError("This file is larger than 25 MB.")
+            val name = (part.fileName?.let { MimeUtility.decodeText(it) } ?: "attachment").replace(Regex("[^A-Za-z0-9._ -]"), "_").take(120).ifBlank { "attachment" }
+            val dir = File(context.cacheDir, "attachments").apply { mkdirs() }
+            val out = File(dir, name)
+            part.inputStream.use { input -> out.outputStream().use { input.copyTo(it) } }
+            Uri.fromFile(out).toString()
           } finally {
             inbox.close(false)
           }
@@ -235,6 +274,30 @@ class ShotorMailModule : Module() {
       null // an unreadable part (odd encoding) should not fail the whole sync
     }
 
+  /** Lists files attached to a message: name, type, size and the part path used to download one later. */
+  private fun attachments(p: Part, path: String, out: MutableList<Map<String, Any?>>) {
+    try {
+      if (p.isMimeType("multipart/*")) {
+        val mp = p.content as? Multipart ?: return
+        for (i in 0 until mp.count) attachments(mp.getBodyPart(i), if (path.isEmpty()) "$i" else "$path.$i", out)
+        return
+      }
+      val name = p.fileName?.let { MimeUtility.decodeText(it) }
+      if (name != null || Part.ATTACHMENT.equals(p.disposition, ignoreCase = true) || p.isMimeType("text/calendar")) {
+        out.add(
+          mapOf(
+            "name" to (name ?: if (p.isMimeType("text/calendar")) "invite.ics" else "attachment"),
+            "mime" to (p.contentType ?: "").substringBefore(';').trim().lowercase(),
+            "size" to p.size.toDouble(),
+            "ref" to path,
+          ),
+        )
+      }
+    } catch (_: Exception) {
+      // An unreadable part is skipped, not fatal.
+    }
+  }
+
   /** Turns mail-library errors into short messages a non-technical user can act on. */
   private inline fun <T> friendly(block: () -> T): T {
     try {
@@ -256,6 +319,7 @@ class ShotorMailModule : Module() {
   }
 
   companion object {
+    private const val MAX_ATTACHMENT = 25 * 1024 * 1024
     private val HEADERS = listOf("Message-ID", "In-Reply-To", "References", "List-Id", "List-Unsubscribe", "Auto-Submitted", "Precedence", "X-Autoreply", "X-Autorespond")
   }
 }

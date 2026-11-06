@@ -3,7 +3,7 @@ import { requireOptionalNativeModule } from 'expo-modules-core';
 import * as SecureStore from 'expo-secure-store';
 import NetInfo from '@react-native-community/netinfo';
 import { db, getSetting, notify, setSetting } from '../db';
-import { isAutomaticMail } from './rules';
+import { isAutomaticMail, type Attachment } from './rules';
 import { htmlToText } from './text';
 
 /**
@@ -28,11 +28,13 @@ type FetchedMail = {
   text: string | null;
   html: string | null;
   headers: Record<string, string | null>;
+  attachments: Attachment[] | null;
 };
 type NativeMail = {
   test(cfg: ImapConfig): Promise<boolean>;
   fetch(cfg: ImapConfig, sinceMs: number, max: number, knownIds: string[]): Promise<FetchedMail[]>;
   send(cfg: ImapConfig, mail: { to: string; subject: string; body: string; inReplyTo: string | null; references: string | null }): Promise<string>;
+  attachment(cfg: ImapConfig, id: string, ref: string): Promise<string>;
 };
 const Native = requireOptionalNativeModule<NativeMail>('ShotorMail');
 
@@ -199,8 +201,8 @@ export async function syncImapInbox(): Promise<number> {
     const headers = Object.fromEntries(Object.entries(r.headers).filter(([, v]) => v != null)) as Record<string, string>;
     const body = (r.text ?? htmlToText(r.html ?? '')).slice(0, 50000);
     db.runSync(
-      `INSERT OR REPLACE INTO emails (id, thread_id, from_name, from_addr, to_addr, subject, snippet, body, date, unread, message_id_header, references_header, is_bulk)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT OR REPLACE INTO emails (id, thread_id, from_name, from_addr, to_addr, subject, snippet, body, date, unread, message_id_header, references_header, is_bulk, attachments)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       r.id,
       threadKey(r.headers, r.id),
       r.fromName,
@@ -214,6 +216,7 @@ export async function syncImapInbox(): Promise<number> {
       headers['message-id'] ?? null,
       headers['references'] ?? null,
       isAutomaticMail(headers, r.fromAddr) ? 1 : 0,
+      JSON.stringify(r.attachments ?? []),
     );
     added++;
   }
@@ -228,6 +231,18 @@ export async function sendImap(mail: { to: string; subject: string; body: string
   if (!cfg || !Native) throw new Error('Work email is not connected.');
   try {
     return await Native.send(cfg, mail);
+  } catch (e) {
+    throw new Error(cleanError(e));
+  }
+}
+
+/** Downloads one attachment of a work email into the app cache (for "Summarise file", read on the phone). */
+export async function downloadImapAttachment(emailId: string, a: Attachment): Promise<string> {
+  const cfg = await loadImapConfig();
+  if (!cfg || !Native) throw new Error('Work email is not connected.');
+  if (a.size > 25 * 1024 * 1024) throw new Error('This file is larger than 25 MB.');
+  try {
+    return await Native.attachment(cfg, emailId, a.ref);
   } catch (e) {
     throw new Error(cleanError(e));
   }

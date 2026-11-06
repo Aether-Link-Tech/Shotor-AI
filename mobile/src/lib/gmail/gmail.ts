@@ -1,8 +1,9 @@
 import NetInfo from '@react-native-community/netinfo';
 import { accessToken, AuthExpiredError, isGmailConnected } from './auth';
 import { db, notify, setSetting } from '../db';
-import { bytesToBase64, fromBase64Url, toBase64Url, utf8Encode } from '../encoding';
-import { isAutomaticMail } from '../mail/rules';
+import { File, Paths } from 'expo-file-system';
+import { base64ToBytes, bytesToBase64, fromBase64Url, toBase64Url, utf8Encode } from '../encoding';
+import { isAutomaticMail, type Attachment } from '../mail/rules';
 import { htmlToText } from '../mail/text';
 import { mailProvider } from '../mail/account';
 import { sendImap, syncImapInbox } from '../mail/imap';
@@ -30,7 +31,14 @@ async function gmailFetch(path: string, init?: RequestInit) {
   return res.json();
 }
 
-type Part = { mimeType?: string; body?: { data?: string }; parts?: Part[]; headers?: { name: string; value: string }[] };
+type Part = { mimeType?: string; filename?: string; body?: { data?: string; attachmentId?: string; size?: number }; parts?: Part[]; headers?: { name: string; value: string }[] };
+
+/** Attachments in a Gmail message (name, type, size and the id needed to download one). */
+export function gmailAttachments(p: Part, out: Attachment[] = []): Attachment[] {
+  if (p.filename && p.body?.attachmentId) out.push({ name: p.filename, mime: (p.mimeType ?? '').toLowerCase(), size: p.body.size ?? 0, ref: p.body.attachmentId });
+  for (const c of p.parts ?? []) gmailAttachments(c, out);
+  return out;
+}
 
 export function findBody(p: Part, mime: string): string | null {
   if (p.mimeType === mime && p.body?.data) return fromBase64Url(p.body.data);
@@ -45,6 +53,18 @@ export function findBody(p: Part, mime: string): string | null {
 export function parseFrom(v: string) {
   const m = v.match(/^\s*"?([^"<]*)"?\s*<([^>]+)>/);
   return m ? { name: m[1].trim() || m[2], addr: m[2].trim() } : { name: v.trim(), addr: v.trim() };
+}
+
+/** Downloads one Gmail attachment into the app cache (for "Summarise file", read on the phone). */
+export async function downloadGmailAttachment(messageId: string, a: Attachment): Promise<string> {
+  if (a.size > 25 * 1024 * 1024) throw new Error('This file is larger than 25 MB.');
+  const r = await gmailFetch(`/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(a.ref)}`);
+  const bytes = base64ToBytes(String(r.data ?? '').replace(/-/g, '+').replace(/_/g, '/'));
+  const f = new File(Paths.cache, a.name.replace(/[^A-Za-z0-9._ -]/g, '_').slice(0, 120) || 'attachment');
+  if (f.exists) f.delete();
+  f.create();
+  f.write(bytes);
+  return f.uri;
 }
 
 /** Pulls the last 7 days of inbox mail into the local database, from Gmail or from work email (IMAP). */
@@ -72,8 +92,8 @@ async function syncGmailInbox(): Promise<number> {
     const plain = findBody(msg.payload, 'text/plain');
     const body = (plain ?? htmlToText(findBody(msg.payload, 'text/html') ?? msg.snippet ?? '')).slice(0, 50000);
     db.runSync(
-      `INSERT OR REPLACE INTO emails (id, thread_id, from_name, from_addr, to_addr, subject, snippet, body, date, unread, message_id_header, references_header, is_bulk)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT OR REPLACE INTO emails (id, thread_id, from_name, from_addr, to_addr, subject, snippet, body, date, unread, message_id_header, references_header, is_bulk, attachments)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       id,
       msg.threadId,
       from.name,
@@ -87,6 +107,7 @@ async function syncGmailInbox(): Promise<number> {
       headers['message-id'] ?? null,
       headers['references'] ?? null,
       isAutomaticMail(headers, from.addr) || (msg.labelIds ?? []).some((l: string) => /^CATEGORY_(PROMOTIONS|SOCIAL|UPDATES|FORUMS)$/.test(l)) ? 1 : 0,
+      JSON.stringify(gmailAttachments(msg.payload ?? {})),
     );
     added++;
   }

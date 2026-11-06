@@ -4,7 +4,7 @@
  */
 
 type Row = Record<string, any>;
-const state = { emails: [] as Row[], outbox: [] as Row[], settings: {} as Record<string, string> };
+const state = { emails: [] as Row[], outbox: [] as Row[], vips: [] as string[], settings: {} as Record<string, string> };
 
 jest.mock('../src/lib/db', () => ({
   notify: jest.fn(),
@@ -16,14 +16,21 @@ jest.mock('../src/lib/db', () => ({
   db: {
     getAllSync: (sql: string, since: number) => {
       if (/FROM emails WHERE category IS NULL/.test(sql)) return state.emails.filter((e) => e.category == null && e.date >= since);
+      if (/WHERE handled = 'asked'/.test(sql)) return state.emails.filter((e) => e.handled === 'asked' && !e.replied);
       throw new Error('unexpected query ' + sql);
     },
     getFirstSync: (sql: string, arg: any) => {
+      if (/FROM vips WHERE addr = \?/.test(sql)) return state.vips.includes(arg) ? { 1: 1 } : null;
       if (/COUNT\(\*\) AS n FROM outbox WHERE auto = 1/.test(sql)) return { n: state.outbox.filter((o) => o.auto && o.created_at >= arg).length };
       if (/FROM outbox WHERE thread_id = \? AND auto = 1/.test(sql)) return state.outbox.find((o) => o.auto && o.thread_id === arg) ?? null;
       throw new Error('unexpected query ' + sql);
     },
     runSync: (sql: string, ...a: any[]) => {
+      if (/UPDATE emails SET reasons/.test(sql)) {
+        state.emails.find((x) => x.id === a[1])!.reasons = JSON.parse(a[0]);
+        return;
+      }
+      if (/INSERT OR REPLACE INTO vips/.test(sql)) return void state.vips.push(a[0]);
       if (/UPDATE emails SET category/.test(sql)) {
         const e = state.emails.find((x) => x.id === a[4])!;
         Object.assign(e, { category: a[0], ai_summary: a[1], options: a[2], handled: a[3] });
@@ -50,9 +57,10 @@ jest.mock('../src/lib/gmail/gmail', () => ({
   queueReply: (o: Row) => state.outbox.push({ ...o, thread_id: o.threadId, auto: o.delayMs !== undefined ? 1 : 0, created_at: Date.now() }),
 }));
 const notifications: Row[] = [];
-jest.mock('expo-notifications', () => ({ scheduleNotificationAsync: async (n: Row) => notifications.push(n) }));
+jest.mock('expo-notifications', () => ({ scheduleNotificationAsync: async (n: Row) => notifications.push(n), dismissNotificationAsync: async () => {} }));
+jest.mock('../src/lib/ai/cloud', () => ({ cloudStatus: () => 'off' }));
 
-import { processNewEmails, setAutoReply } from '../src/lib/mail/agent';
+import { processNewEmails, setAutoReply, setVip } from '../src/lib/mail/agent';
 
 let n = 0;
 function email(subject: string, extra: Row = {}): Row {
@@ -75,7 +83,8 @@ describe('email assistant', () => {
     expect(state.outbox).toHaveLength(0);
     expect(state.emails.map((e) => e.handled)).toEqual(['asked', 'asked', 'skipped']);
     expect(state.emails[0].ai_summary).toBe('Summary of [routine] Thanks');
-    expect(notifications[0].content.title).toBe('2 emails need your answer');
+    expect(notifications.at(-1)!.identifier).toBe('mail-summary');
+    expect(notifications.at(-1)!.content.title).toBe('📩 2 emails waiting for you');
   });
 
   it('auto-reply ON: answers routine mail with a delay and asks only about important mail', async () => {
@@ -85,7 +94,7 @@ describe('email assistant', () => {
     expect(r).toEqual({ asked: 1, auto: 1 });
     expect(state.outbox).toHaveLength(1);
     expect(state.outbox[0].delayMs).toBe(10 * 60000);
-    expect(state.outbox[0].body).toMatch(/Automatic reply from Sarah's assistant$/);
+    expect(state.outbox[0].body).toMatch(/— Sent by Sarah's assistant$/);
     expect(state.emails.map((e) => e.handled)).toEqual(['auto_replied', 'asked']);
   });
 
@@ -130,5 +139,24 @@ describe('email assistant', () => {
     state.emails.push(email('[routine] Thanks'));
     const r = await processNewEmails();
     expect(r).toEqual({ asked: 1, auto: 0 });
+  });
+
+  it('sends files, senior senders, VIPs and meetings to the owner even when the AI says routine', async () => {
+    setAutoReply(true);
+    setVip('boss@board.example', 'Board Chair', true);
+    state.emails.push(
+      email('[routine] Thanks', { attachments: JSON.stringify([{ name: 'Proposal.pdf', mime: 'application/pdf', size: 300000, ref: 'a1' }]) }),
+      email('[routine] Thank you', { body: 'Thanks for the visit.\nBest regards,\nAli Khan\nCEO, Gulf Trade' }),
+      email('[routine] Hello', { from_addr: 'Boss@Board.example' }),
+      email('[routine] Can we meet on Thursday?'),
+      email('[routine] Thanks', { attachments: JSON.stringify([{ name: 'logo.png', mime: 'image/png', size: 5000, ref: 'a2' }]) }),
+    );
+    const r = await processNewEmails();
+    expect(state.emails.map((e) => e.reasons)).toEqual([['file'], ['senior'], ['vip'], ['meeting'], []]);
+    expect(r).toEqual({ asked: 4, auto: 1 }); // only the plain thank-you with a logo is answered
+    // CEO and VIP: instant alerts (as well as the summary)
+    const instant = notifications.filter((n) => !n.identifier).map((n) => n.content.title);
+    expect(instant).toEqual(['👔 Leyla (CEO)', '⭐ Leyla']);
+    expect(notifications.at(-1)!.content.title).toBe('📩 4 emails waiting for you');
   });
 });

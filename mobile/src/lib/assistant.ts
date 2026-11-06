@@ -25,6 +25,8 @@ export type Email = {
   ai_summary: string | null;
   options: string | null;
   handled: 'asked' | 'auto_replied' | 'skipped' | 'dismissed' | null;
+  attachments: string | null;
+  reasons: string | null;
 };
 
 const STOP = new Set('the a an and or of to in on for with is are was were be what which who how when do does did my me i you it this that from at by about'.split(' '));

@@ -56,3 +56,53 @@ export function parseOptions(json: string | null | undefined): string[] {
     return [];
   }
 }
+
+/* ------------------------- why an email is important ------------------------- */
+
+export type Attachment = { name: string; mime: string; size: number; ref: string };
+export type Reason = 'file' | 'senior' | 'vip' | 'meeting' | 'sensitive' | 'ai';
+
+/** Real files (proposal, contract, sheet…), not the little logos and icons in signatures. */
+export function realFiles(list: Attachment[]): Attachment[] {
+  return list.filter((a) => !(a.mime.startsWith('image/') && a.size > 0 && a.size < 60000) && !/\.ics$/i.test(a.name) && a.mime !== 'text/calendar');
+}
+
+const TITLES =
+  /\b(CEO|Chief Executive(?: Officer)?|COO|CFO|CTO|Chief [A-Z][a-z]+ Officer|Co-?Founder|Founder|Chairman|Chairwoman|Chairperson|Managing Director|Executive Director|Director General|Managing Partner|President|Vice President|VP|Director|Owner|Board Member)\b/;
+
+/** A senior title in the sender's signature (the last lines of their own text, before any quoted mail). */
+export function seniorTitle(bodyWithoutQuotes: string): string | null {
+  const lines = bodyWithoutQuotes.trim().split('\n').slice(-12);
+  for (const l of lines) {
+    if (l.length > 90) continue; // a sentence in the message, not a signature line
+    const m = TITLES.exec(l);
+    if (m) return m[1];
+  }
+  return null;
+}
+
+const MEETING_WORDS = /\b(meet|meeting|call|zoom|teams meeting|google meet|appointment|catch[- ]up|schedule (?:a|the|our)|available (?:on|at|for)|invitation|invite)\b/i;
+
+/** A meeting invite or request. */
+export function isMeetingEmail(subject: string, body: string, attachments: Attachment[]): boolean {
+  if (attachments.some((a) => /\.ics$/i.test(a.name) || a.mime === 'text/calendar')) return true;
+  return MEETING_WORDS.test(`${subject}\n${body.slice(0, 1500)}`);
+}
+
+export const REASON_LABEL: Record<Reason, string> = {
+  file: '📎 File',
+  senior: '👔 Senior sender',
+  vip: '⭐ VIP',
+  meeting: '📅 Meeting',
+  sensitive: '💰 Money / contract / urgent',
+  ai: '❓ Needs your decision',
+};
+
+export function parseAttachments(json: string | null | undefined): Attachment[] {
+  try {
+    const v = JSON.parse(json ?? '[]');
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+}

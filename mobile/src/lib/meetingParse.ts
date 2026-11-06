@@ -71,3 +71,16 @@ export function parseMeeting(input: string, now = new Date(), opts: { locale?: s
 
   return { title, start, end: new Date(start.getTime() + minutes * 60000), location, hasTime };
 }
+
+/** The first future date with a time mentioned in an email, for "Add to calendar" (1 hour by default). */
+export function findMeetingTime(text: string, sentAt: Date, locale?: string): { start: Date; end: Date } | null {
+  const parser = (locale ?? Intl.DateTimeFormat().resolvedOptions().locale).toLowerCase() === 'en-us' ? chrono.en : chrono.en.GB;
+  for (const r of parser.parse(text.slice(0, 3000), sentAt, { forwardDate: true })) {
+    if (!r.start.isCertain('hour')) continue;
+    const start = r.start.date();
+    if (start.getTime() < sentAt.getTime() - 3600000) continue;
+    const end = r.end?.date() ?? new Date(start.getTime() + 3600000);
+    return { start, end: end > start ? end : new Date(start.getTime() + 3600000) };
+  }
+  return null;
+}
