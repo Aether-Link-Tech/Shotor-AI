@@ -253,8 +253,8 @@ export async function draftAutoReply(email: EmailForReply, ownerNote: string) {
       {
         role: 'user',
         content:
-          `Write a short, warm reply (2 to 4 sentences) to this email. Only thank the sender and acknowledge the message. ` +
-          `Do not give any numbers, dates, prices, information or promises. If they ask for something, say ${owner} will get back to them personally.` +
+          `Write a short, warm reply (2 or 3 sentences) to this email, in English, in the first person as ${owner} ("I"). Only thank the sender and acknowledge the message. ` +
+          `Do not give any numbers, dates, prices, information or promises. Only if the email asks for something, add that you will reply in more detail soon; otherwise do not mention any follow-up.` +
           (ownerNote.trim() ? `\nAlso follow this note from ${owner}: ${ownerNote.trim().slice(0, 300)}` : '') +
           `\nReturn only the reply body, signed "${owner}".\n\n` +
           `<email>\nFrom: ${email.fromName} <${email.fromAddr}>\nSubject: ${email.subject}\n\n${redactForCloud(email.body).slice(0, 3000)}\n</email>`,
