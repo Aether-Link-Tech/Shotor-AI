@@ -34,6 +34,18 @@ The welcome screen walks you through it:
 | **Mail** | Connect your email once (see *Connecting your email* below). Shotor summarises each new email and lists the ones that **need your answer**, with ready answers: tap one and Shotor writes the reply for you to check and send. Turn on **Settings → Answer routine email automatically** to let Shotor reply by itself to simple mail, such as thank-you notes. It always asks you about money, contracts, decisions and complaints, and each automatic reply waits 10 minutes so you can cancel it. If you are offline, replies wait in the Outbox. |
 | **Settings** (gear icon, top right) | AI speed test, reminder time, daily brief time, AI model, app lock, erase data |
 
+## Turning on the fast online AI (once per phone)
+Email sorting, replies and Ask AI are much faster with the online AI. Your administrator gives you two things: an **Account ID** and a **token**.
+
+1. Copy the token onto the phone: for example, send it to yourself on WhatsApp ("Message yourself") and copy it from there.
+2. In Shotor, tap the **gear icon** (top right) to open **Settings**. Under **AI**, find **Online AI (fast email & chat)** and tap **Add key**.
+3. **Cloudflare account ID:** type or paste the Account ID.
+4. **Workers AI token:** paste the token.
+5. Tap **Save**. Shotor checks the key once (internet needed). The card then shows **ON**.
+6. Delete the message that contained the token.
+
+The key is stored encrypted on this phone only. Reports, proposals and attachments always stay on the phone; only email and chat text use the online AI. Without the key, or without internet, Shotor uses the on-phone AI automatically.
+
 ## Connecting your email
 Open **Mail** and choose the button that fits your address:
 
