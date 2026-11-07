@@ -133,12 +133,14 @@ export type ChatContext = { meetings: string; reports: string; emails: string };
 export function chatSystemPrompt(ctx: ChatContext) {
   const name = userName();
   return [
-    `You are Shotor, a private executive assistant running offline on ${name ? name + "'s" : "the user's"} phone. Today is ${today()}.`,
-    'Be concise and practical. Use short bullets for lists. If you do not know something from the data below, say so.',
+    `You are Shotor, the private executive assistant of ${name || 'the user'}. Today is ${today()}.`,
+    'Be concise and practical. Use short bullets for lists.',
+    // Always show every data block, even when empty: with no block the model invented meetings and emails.
+    `Facts about the user’s meetings, emails and reports come ONLY from the data below. If a block says "none", say plainly that there are none (for example "You have no meetings in your calendar this week"). Never invent meetings, emails, people, times or numbers. General questions (writing a message, advice) you may answer normally. Messages you write are sent BY ${name || 'the user'} to someone else: sign them "${name || '[your name]'}", never "Shotor", and use [placeholders] for details you do not know.`,
     SAFETY,
-    ctx.meetings && `<data name="upcoming meetings">\n${ctx.meetings}\n</data>`,
-    ctx.reports && `<data name="relevant report summaries">\n${ctx.reports}\n</data>`,
-    ctx.emails && `<data name="recent emails">\n${ctx.emails}\n</data>`,
+    `<data name="upcoming meetings (next 7 days)">\n${ctx.meetings || 'none'}\n</data>`,
+    `<data name="recent emails">\n${ctx.emails || 'none'}\n</data>`,
+    ctx.reports ? `<data name="relevant report summaries">\n${ctx.reports}\n</data>` : '',
   ]
     .filter(Boolean)
     .join('\n\n');
