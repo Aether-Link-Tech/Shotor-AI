@@ -2,7 +2,7 @@ import { db, dayKey, getSetting, notify, setSetting } from './db';
 import { meetingLine, todaysMeetings, upcomingMeetings } from './calendar';
 import { chatSystemPrompt, trimHistory, writeDailyBrief, writeMeetingPrep } from './ai/tasks';
 import { generate, type ChatMessage } from './ai/engine';
-import { fastGenerate } from './ai/cloud';
+import { cloudStatus, fastGenerate } from './ai/cloud';
 
 export type Report = { id: number; title: string; source: string; original_text: string; summary: string | null; created_at: number };
 export type Email = {
@@ -55,13 +55,21 @@ function recentEmailLines(limit = 8) {
     .join('\n');
 }
 
+/** Questions about uploaded reports and documents (their figures, risks, summaries…). */
+export function asksAboutReports(text: string) {
+  return /\b(report|proposal|document|doc|file|pdf|summar|risk|figure|number|revenue|profit|budget|kpi|decision|q[1-4])\w*/i.test(text);
+}
+
 export async function sendChatMessage(text: string, onToken: (t: string) => void) {
   const now = Date.now();
   db.runSync(`INSERT INTO chat_messages (role, content, created_at) VALUES ('user', ?, ?)`, text, now);
   notify('chat');
 
   const meetings = await upcomingMeetings(7).catch(() => []);
-  const reports = findRelevantReports(text);
+  // With the online AI on, report content is only used for questions that are about reports,
+  // and those are answered on the phone. Everything else goes online without any report text.
+  const online = cloudStatus() === 'on';
+  const reports = !online || asksAboutReports(text) ? findRelevantReports(text) : [];
   const system = chatSystemPrompt({
     meetings: meetings.slice(0, 12).map((m) => `- ${m.start.toLocaleDateString()} ${meetingLine(m)}`).join('\n'),
     reports: reports.map((r) => `### ${r.title} (${new Date(r.created_at).toLocaleDateString()})\n${(r.summary ?? '').slice(0, 1400)}`).join('\n\n'),
@@ -74,7 +82,7 @@ export async function sendChatMessage(text: string, onToken: (t: string) => void
 
   try {
     // Questions that bring in report content stay on the phone (reports never go online); others use the fast online AI.
-    const run = reports.length ? generate : fastGenerate;
+    const run = online && !reports.length ? fastGenerate : generate;
     const answer = await run([{ role: 'system', content: system }, ...trimHistory(history, system)], { maxTokens: 700, temperature: 0.5, onToken });
     db.runSync(`INSERT INTO chat_messages (role, content, created_at) VALUES ('assistant', ?, ?)`, answer || '(no answer)', Date.now());
     return answer;
