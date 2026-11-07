@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type HostInstance } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { Markdown } from '../../components/Markdown';
@@ -10,6 +10,7 @@ import { Button } from '../../components/ui';
 import { db, useLive } from '../../lib/db';
 import { clearChat, sendChatMessage } from '../../lib/assistant';
 import { stopGenerating } from '../../lib/ai/engine';
+import { cloudStatus } from '../../lib/ai/cloud';
 import { colors, radius, type } from '../../theme';
 
 type Msg = { id: number; role: 'user' | 'assistant'; content: string };
@@ -17,9 +18,14 @@ type Msg = { id: number; role: 'user' | 'assistant'; content: string };
 const SUGGESTIONS = ['What is on my calendar this week?', 'Which emails need my reply?', 'What were the key risks in my latest report?', 'Draft talking points for my next meeting'];
 
 export default function Chat() {
-  const { model } = useEngine();
+  const { model: phoneModel } = useEngine();
   const params = useLocalSearchParams<{ q?: string }>();
   const navigation = useNavigation();
+  const kavRef = useRef<HostInstance>(null);
+  const online = useLive(['settings'], () => cloudStatus() === 'on');
+  // Chat works with the online AI alone, or with the phone model.
+  const model = !!phoneModel || online;
+  const [topOffset, setTopOffset] = useState(0);
   const messages = useLive(['chat'], () => db.getAllSync<Msg>('SELECT id, role, content FROM chat_messages ORDER BY id DESC LIMIT 200'));
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState<string | null>(null);
@@ -67,7 +73,10 @@ export default function Chat() {
   const data: Msg[] = streaming !== null ? [{ id: -1, role: 'assistant', content: streaming || '…' }, ...messages] : messages;
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior="padding">
+    // keyboardVerticalOffset must be this screen's distance from the top of the window (below the header);
+    // without it the text box was lifted too little and stayed under the keyboard.
+    <View ref={kavRef} style={{ flex: 1 }} onLayout={() => kavRef.current?.measureInWindow((_x, y) => y >= 0 && setTopOffset(y))}>
+    <KeyboardAvoidingView keyboardVerticalOffset={topOffset} style={{ flex: 1, backgroundColor: colors.bg }} behavior="padding">
       {messages.length === 0 && streaming === null ? <Watermark /> : null}
       <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
         <ModelBanner />
@@ -77,7 +86,11 @@ export default function Chat() {
         // Android versions, which showed this text mirrored.
         <ScrollView contentContainerStyle={[styles.empty, { padding: 16 }]} keyboardShouldPersistTaps="handled">
           <Text style={type.h2}>Ask anything</Text>
-          <Text style={[type.small, { textAlign: 'center' }]}>Answers are written on this phone using your meetings, recent email and report summaries. Nothing leaves the device.</Text>
+          <Text style={[type.small, { textAlign: 'center' }]}>
+            {online
+              ? 'Answers use your meetings, recent email and report summaries. Quick questions use the fast online AI; questions about your reports are answered on this phone, so reports never leave it.'
+              : 'Answers are written on this phone using your meetings, recent email and report summaries. Nothing leaves the device.'}
+          </Text>
           <View style={styles.suggestions}>
             {SUGGESTIONS.map((s) => (
               <Pressable key={s} style={styles.chip} onPress={() => send(s)} disabled={!model}>
@@ -129,6 +142,7 @@ export default function Chat() {
         )}
       </View>
     </KeyboardAvoidingView>
+    </View>
   );
 }
 

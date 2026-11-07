@@ -27,7 +27,9 @@ export default function TabLayout() {
         tabBarActiveTintColor: colors.navy,
         tabBarInactiveTintColor: colors.faint,
         tabBarStyle: { borderTopColor: colors.line },
-        tabBarHideOnKeyboard: true,
+        // Keep the tab bar while typing: hiding it moved the screen at the same moment the keyboard opened, so text
+        // boxes were lifted by the wrong amount and stayed under the keyboard.
+        tabBarHideOnKeyboard: false,
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
       }}
     >
