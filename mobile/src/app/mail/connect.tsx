@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { Button, Card, Row, Screen } from '../../components/ui';
 import { MailIcon } from '../../components/Icons';
-import { getSetting } from '../../lib/db';
-import { connectImap, detectServers, imapSupported, serverChoices, type Detected, type Security, type ServerSettings } from '../../lib/mail/imap';
+import { detectServers, imapSupported, serverChoices, type Detected, type Security, type ServerSettings } from '../../lib/mail/imap';
 import { runSync } from '../../lib/sync';
+import { autoConnect, ConnectError, type Attempt } from '../../lib/mail/autoconnect';
 import { colors, radius, type } from '../../theme';
 
 const SECURITY: { key: Security; label: string }[] = [
@@ -23,6 +23,8 @@ export default function ConnectWorkEmail() {
   const [advanced, setAdvanced] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [step, setStep] = useState('');
+  const [attempts, setAttempts] = useState<Attempt[]>([]);
 
   const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
@@ -35,16 +37,26 @@ export default function ConnectWorkEmail() {
 
   async function connect() {
     setError('');
+    setAttempts([]);
     setBusy(true);
     try {
       const s = servers ?? (await detectServers(email.trim())).settings;
-      await connectImap({ ...s, email: email.trim(), password, name: getSetting('user.name', '').trim() });
+      // Tries the chosen servers first, then every usual server name, port and login style by itself.
+      const r = await autoConnect(email.trim(), password, s, setStep);
       runSync().catch(() => {});
-      router.back();
+      if (!r.canSend) {
+        Alert.alert(
+          'Connected — reading works',
+          'This network blocks sending email right now (common on some mobile data). Your replies wait in the Outbox and are sent automatically when the phone is on Wi-Fi or another network.',
+          [{ text: 'OK', onPress: () => router.back() }],
+        );
+      } else router.back();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      if (e instanceof ConnectError) setAttempts(e.attempts);
     } finally {
       setBusy(false);
+      setStep('');
     }
   }
 
@@ -149,7 +161,18 @@ export default function ConnectWorkEmail() {
         ) : null}
 
         {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
-        <Button title={busy ? 'Checking…' : 'Connect'} onPress={connect} loading={busy} disabled={!validEmail || !password || busy} />
+        {attempts.length ? (
+          <View style={styles.attempts}>
+            <Text style={type.tiny}>What each server answered (send a screenshot of this to support):</Text>
+            {attempts.map((a, i) => (
+              <Text key={i} style={[type.tiny, { color: a.result === 'ok' ? colors.success : colors.text }]}>
+                {a.step === 'reading' ? 'IN ' : 'OUT'} {a.server} · {a.login} → {a.result === 'ok' ? 'OK' : a.detail}
+              </Text>
+            ))}
+          </View>
+        ) : null}
+        {busy && step ? <Text style={type.small}>{step}</Text> : null}
+        <Button title={busy ? 'Finding your mail server…' : 'Connect'} onPress={connect} loading={busy} disabled={!validEmail || !password || busy} />
       </Card>
       <Text style={[type.tiny, { textAlign: 'center' }]}>Shotor reads your inbox and sends replies through your own mail server. Nothing goes to Aether Link.</Text>
     </Screen>
@@ -194,4 +217,5 @@ const styles = StyleSheet.create({
   chip: { backgroundColor: '#E3E9F5', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
   chipOn: { backgroundColor: colors.navy },
   chipText: { color: colors.navy, fontWeight: '600', fontSize: 13 },
+  attempts: { backgroundColor: colors.bg, borderRadius: radius.md, padding: 10, gap: 3 },
 });

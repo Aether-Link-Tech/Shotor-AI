@@ -43,6 +43,10 @@ class MailConfig : Record {
   @Field var smtpHost: String = ""
   @Field var smtpPort: Int = 465
   @Field var smtpSecurity: String = "ssl"
+  /** Login name if the server wants something other than the full address (e.g. only "ceo"). */
+  @Field var username: String = ""
+  /** Seconds to wait for a server; short while auto-detecting, longer for normal use. */
+  @Field var timeoutSec: Int = 20
 }
 
 class OutgoingMail : Record {
@@ -63,6 +67,27 @@ class ShotorMailModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("ShotorMail")
 
+    /** Signs in to the incoming (IMAP) server only. Used while auto-detecting settings. */
+    AsyncFunction("testImap") { cfg: MailConfig ->
+      friendly {
+        openStore(Session.getInstance(props(cfg)), cfg).close()
+      }
+      true
+    }
+
+    /** Signs in to the outgoing (SMTP) server only. Used while auto-detecting settings. */
+    AsyncFunction("testSmtp") { cfg: MailConfig ->
+      friendly {
+        val t = Session.getInstance(props(cfg)).getTransport("smtp")
+        try {
+          t.connect(cfg.smtpHost, cfg.smtpPort, login(cfg), cfg.password)
+        } finally {
+          t.close()
+        }
+      }
+      true
+    }
+
     /** Signs in to both servers once, so the user learns about a wrong password or server immediately. */
     AsyncFunction("test") { cfg: MailConfig ->
       friendly {
@@ -70,7 +95,7 @@ class ShotorMailModule : Module() {
         openStore(session, cfg).close()
         val t = session.getTransport("smtp")
         try {
-          t.connect(cfg.smtpHost, cfg.smtpPort, cfg.email, cfg.password)
+          t.connect(cfg.smtpHost, cfg.smtpPort, login(cfg), cfg.password)
         } finally {
           t.close()
         }
@@ -181,7 +206,7 @@ class ShotorMailModule : Module() {
         msg.saveChanges()
         val t = session.getTransport("smtp")
         try {
-          t.connect(cfg.smtpHost, cfg.smtpPort, cfg.email, cfg.password)
+          t.connect(cfg.smtpHost, cfg.smtpPort, login(cfg), cfg.password)
           t.sendMessage(msg, msg.allRecipients)
         } finally {
           t.close()
@@ -196,6 +221,8 @@ class ShotorMailModule : Module() {
     }
   }
 
+  private fun login(cfg: MailConfig) = cfg.username.ifBlank { cfg.email }
+
   private fun imapProtocol(cfg: MailConfig) = if (cfg.imapSecurity == "ssl") "imaps" else "imap"
 
   private fun props(cfg: MailConfig) = Properties().apply {
@@ -203,7 +230,7 @@ class ShotorMailModule : Module() {
     put("mail.store.protocol", p)
     put("mail.$p.host", cfg.imapHost)
     put("mail.$p.port", cfg.imapPort.toString())
-    put("mail.$p.connectiontimeout", "20000")
+    put("mail.$p.connectiontimeout", (cfg.timeoutSec * 1000).toString())
     put("mail.$p.timeout", "30000")
     if (cfg.imapSecurity == "starttls") {
       put("mail.imap.starttls.enable", "true")
@@ -214,7 +241,7 @@ class ShotorMailModule : Module() {
     put("mail.smtp.host", cfg.smtpHost)
     put("mail.smtp.port", cfg.smtpPort.toString())
     put("mail.smtp.auth", "true")
-    put("mail.smtp.connectiontimeout", "20000")
+    put("mail.smtp.connectiontimeout", (cfg.timeoutSec * 1000).toString())
     put("mail.smtp.timeout", "30000")
     put("mail.smtp.writetimeout", "30000")
     when (cfg.smtpSecurity) {
@@ -232,7 +259,7 @@ class ShotorMailModule : Module() {
 
   private fun openStore(session: Session, cfg: MailConfig): Store {
     val store = session.getStore(imapProtocol(cfg))
-    store.connect(cfg.imapHost, cfg.imapPort, cfg.email, cfg.password)
+    store.connect(cfg.imapHost, cfg.imapPort, login(cfg), cfg.password)
     return store
   }
 

@@ -14,7 +14,8 @@ import { htmlToText } from './text';
 
 export type Security = 'ssl' | 'starttls' | 'none';
 export type ServerSettings = { imapHost: string; imapPort: number; imapSecurity: Security; smtpHost: string; smtpPort: number; smtpSecurity: Security };
-export type ImapConfig = ServerSettings & { email: string; password: string; name: string };
+/** username: login name when the server does not take the full address; timeoutSec: shorter while auto-detecting. */
+export type ImapConfig = ServerSettings & { email: string; password: string; name: string; username?: string; timeoutSec?: number };
 
 type FetchedMail = {
   id: string;
@@ -32,6 +33,8 @@ type FetchedMail = {
 };
 type NativeMail = {
   test(cfg: ImapConfig): Promise<boolean>;
+  testImap(cfg: ImapConfig): Promise<boolean>;
+  testSmtp(cfg: ImapConfig): Promise<boolean>;
   fetch(cfg: ImapConfig, sinceMs: number, max: number, knownIds: string[]): Promise<FetchedMail[]>;
   send(cfg: ImapConfig, mail: { to: string; subject: string; body: string; inReplyTo: string | null; references: string | null }): Promise<string>;
   attachment(cfg: ImapConfig, id: string, ref: string): Promise<string>;
@@ -39,6 +42,8 @@ type NativeMail = {
 const Native = requireOptionalNativeModule<NativeMail>('ShotorMail');
 
 export const imapSupported = () => Platform.OS === 'android' && !!Native;
+/** The native mail module (Android), for auto-detection in autoconnect.ts. */
+export const imapNative = () => Native;
 
 /* ------------------------------ server presets ------------------------------ */
 
@@ -117,7 +122,8 @@ export async function detectServers(email: string): Promise<Detected> {
 
 /* ------------------------------- the account -------------------------------- */
 
-const KEY_PASSWORD = 'imap.password';
+export const IMAP_PASSWORD_KEY = 'imap.password';
+const KEY_PASSWORD = IMAP_PASSWORD_KEY;
 
 export async function loadImapConfig(): Promise<ImapConfig | null> {
   const email = getSetting('imap.email');
@@ -125,7 +131,7 @@ export async function loadImapConfig(): Promise<ImapConfig | null> {
   if (!email || !raw) return null;
   const password = (await SecureStore.getItemAsync(KEY_PASSWORD)) ?? '';
   try {
-    return { ...(JSON.parse(raw) as ServerSettings), email, password, name: getSetting('user.name', '').trim() };
+    return { ...(JSON.parse(raw) as ServerSettings & { username?: string }), email, password, name: getSetting('user.name', '').trim() };
   } catch {
     return null;
   }
