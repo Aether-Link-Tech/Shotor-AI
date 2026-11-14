@@ -26,9 +26,30 @@ describe('work email server detection', () => {
     expect((await detectServers('aqsa.riaz@saibaan.org.pk')).label).toBe('Hostinger');
   });
 
-  it('sends Google mailboxes to Google sign-in', async () => {
+  it('recognises Google Workspace and points to Google sign-in or an app password', async () => {
     mx(['1 aspmx.l.google.com.']);
-    expect((await detectServers('ali@company.example')).provider).toBe('google');
+    const d = await detectServers('ali@company.example');
+    expect(d.provider).toBe('gmail');
+    expect(d.settings.imapHost).toBe('imap.gmail.com');
+    expect(d.note).toMatch(/Connect Gmail/);
+  });
+
+  it('knows the big providers by address alone (no lookup needed)', async () => {
+    (global as any).fetch = jest.fn();
+    expect((await detectServers('a@yahoo.com')).settings.imapHost).toBe('imap.mail.yahoo.com');
+    expect((await detectServers('a@icloud.com')).settings.smtpPort).toBe(587);
+    expect((await detectServers('a@outlook.com')).note).toMatch(/Microsoft/);
+    expect((await detectServers('a@gmail.com')).provider).toBe('gmail');
+    expect((global as any).fetch).not.toHaveBeenCalled();
+  });
+
+  it('recognises company mail hosted at GoDaddy, Namecheap and Titan from the MX record', async () => {
+    mx(['0 smtp.secureserver.net.']);
+    expect((await detectServers('ceo@firm.example')).label).toBe('GoDaddy Email');
+    mx(['10 mx1.privateemail.com.']);
+    expect((await detectServers('ceo@firm.example')).settings.imapHost).toBe('mail.privateemail.com');
+    mx(['10 mx1.titan.email.']);
+    expect((await detectServers('ceo@firm.example')).settings.smtpHost).toBe('smtp.titan.email');
   });
 
   it('falls back to mail.<domain> for other hosting, or when offline', async () => {

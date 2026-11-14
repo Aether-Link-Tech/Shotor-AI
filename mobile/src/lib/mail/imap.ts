@@ -47,10 +47,70 @@ export const imapNative = () => Native;
 
 /* ------------------------------ server presets ------------------------------ */
 
-const PRESETS: Record<string, ServerSettings & { label: string }> = {
-  hostinger: { label: 'Hostinger', imapHost: 'imap.hostinger.com', imapPort: 993, imapSecurity: 'ssl', smtpHost: 'smtp.hostinger.com', smtpPort: 465, smtpSecurity: 'ssl' },
-  zoho: { label: 'Zoho Mail', imapHost: 'imap.zoho.com', imapPort: 993, imapSecurity: 'ssl', smtpHost: 'smtp.zoho.com', smtpPort: 465, smtpSecurity: 'ssl' },
-  yahoo: { label: 'Yahoo Mail', imapHost: 'imap.mail.yahoo.com', imapPort: 993, imapSecurity: 'ssl', smtpHost: 'smtp.mail.yahoo.com', smtpPort: 465, smtpSecurity: 'ssl' },
+type Preset = ServerSettings & { label: string; domains?: RegExp; mx?: RegExp; note?: string };
+
+const APP_PASSWORD = (provider: string, where: string) =>
+  `${provider} needs an "app password" instead of your normal password: ${where}. Create one there and type it here as the password.`;
+
+/** Known providers: matched by the address's domain or by the domain's mail (MX) records. */
+const PRESETS: Record<string, Preset> = {
+  hostinger: { label: 'Hostinger', mx: /hostinger/, imapHost: 'imap.hostinger.com', imapPort: 993, imapSecurity: 'ssl', smtpHost: 'smtp.hostinger.com', smtpPort: 465, smtpSecurity: 'ssl' },
+  gmail: {
+    label: 'Gmail / Google',
+    domains: /^(gmail|googlemail)\.com$/,
+    mx: /google|googlemail/,
+    imapHost: 'imap.gmail.com',
+    imapPort: 993,
+    imapSecurity: 'ssl',
+    smtpHost: 'smtp.gmail.com',
+    smtpPort: 465,
+    smtpSecurity: 'ssl',
+    note: 'Google: easiest is “Connect Gmail / Google” on the Mail screen. To use this form instead, ' + APP_PASSWORD('Google', 'myaccount.google.com → Security → App passwords (needs 2-step verification)'),
+  },
+  yahoo: {
+    label: 'Yahoo Mail',
+    domains: /^(yahoo|ymail|rocketmail)\.[a-z.]+$/,
+    mx: /yahoodns/,
+    imapHost: 'imap.mail.yahoo.com',
+    imapPort: 993,
+    imapSecurity: 'ssl',
+    smtpHost: 'smtp.mail.yahoo.com',
+    smtpPort: 465,
+    smtpSecurity: 'ssl',
+    note: APP_PASSWORD('Yahoo', 'Yahoo Account Security → Generate app password'),
+  },
+  icloud: {
+    label: 'iCloud Mail',
+    domains: /^(icloud|me|mac)\.com$/,
+    mx: /icloud\.com|me\.com/,
+    imapHost: 'imap.mail.me.com',
+    imapPort: 993,
+    imapSecurity: 'ssl',
+    smtpHost: 'smtp.mail.me.com',
+    smtpPort: 587,
+    smtpSecurity: 'starttls',
+    note: APP_PASSWORD('Apple', 'account.apple.com → Sign-In and Security → App-Specific Passwords'),
+  },
+  aol: { label: 'AOL Mail', domains: /^aol\.com$/, mx: /aol\.com/, imapHost: 'imap.aol.com', imapPort: 993, imapSecurity: 'ssl', smtpHost: 'smtp.aol.com', smtpPort: 465, smtpSecurity: 'ssl', note: APP_PASSWORD('AOL', 'AOL Account Security → Generate app password') },
+  zoho: { label: 'Zoho Mail', domains: /^zoho(mail)?\.[a-z.]+$/, mx: /zoho/, imapHost: 'imap.zoho.com', imapPort: 993, imapSecurity: 'ssl', smtpHost: 'smtp.zoho.com', smtpPort: 465, smtpSecurity: 'ssl' },
+  godaddy: { label: 'GoDaddy Email', mx: /secureserver\.net/, imapHost: 'imap.secureserver.net', imapPort: 993, imapSecurity: 'ssl', smtpHost: 'smtpout.secureserver.net', smtpPort: 465, smtpSecurity: 'ssl' },
+  namecheap: { label: 'Namecheap Private Email', mx: /privateemail\.com/, imapHost: 'mail.privateemail.com', imapPort: 993, imapSecurity: 'ssl', smtpHost: 'mail.privateemail.com', smtpPort: 465, smtpSecurity: 'ssl' },
+  titan: { label: 'Titan Email', mx: /titan\.email/, imapHost: 'imap.titan.email', imapPort: 993, imapSecurity: 'ssl', smtpHost: 'smtp.titan.email', smtpPort: 465, smtpSecurity: 'ssl' },
+  rackspace: { label: 'Rackspace Email', mx: /emailsrvr\.com/, imapHost: 'secure.emailsrvr.com', imapPort: 993, imapSecurity: 'ssl', smtpHost: 'secure.emailsrvr.com', smtpPort: 465, smtpSecurity: 'ssl' },
+  gmx: { label: 'GMX', domains: /^gmx\.[a-z.]+$/, mx: /gmx\./, imapHost: 'imap.gmx.com', imapPort: 993, imapSecurity: 'ssl', smtpHost: 'mail.gmx.com', smtpPort: 587, smtpSecurity: 'starttls' },
+  yandex: { label: 'Yandex Mail', domains: /^yandex\.[a-z.]+$/, mx: /yandex/, imapHost: 'imap.yandex.com', imapPort: 993, imapSecurity: 'ssl', smtpHost: 'smtp.yandex.com', smtpPort: 465, smtpSecurity: 'ssl' },
+  microsoft: {
+    label: 'Outlook / Microsoft 365',
+    domains: /^(outlook|hotmail|live|msn)\.[a-z.]+$/,
+    mx: /outlook\.com|microsoft/,
+    imapHost: 'outlook.office365.com',
+    imapPort: 993,
+    imapSecurity: 'ssl',
+    smtpHost: 'smtp.office365.com',
+    smtpPort: 587,
+    smtpSecurity: 'starttls',
+    note: 'Microsoft (Outlook, Hotmail, Microsoft 365) has switched off password sign-in for other apps, so this may be refused. A “Sign in with Microsoft” option is planned; contact Aether Link.',
+  },
 };
 
 export type Detected = { provider: string; label: string; settings: ServerSettings; note?: string };
@@ -65,14 +125,21 @@ function genericFor(domain: string): Detected {
 }
 
 const pick = (key: string): Detected => {
-  const { label, ...settings } = PRESETS[key];
-  return { provider: key, label, settings };
+  const { label, domains: _d, mx: _m, note, ...settings } = PRESETS[key];
+  return { provider: key, label, settings, ...(note ? { note } : {}) };
 };
+
+/** The provider for an address, from its domain or its mail (MX) records. */
+export function presetFor(domain: string, mx: string): Detected | null {
+  for (const key of Object.keys(PRESETS)) if (PRESETS[key].domains?.test(domain)) return pick(key);
+  for (const key of Object.keys(PRESETS)) if (mx && PRESETS[key].mx?.test(mx)) return pick(key);
+  return null;
+}
 
 /** One-tap choices on the connect screen, for when detection cannot tell. */
 export function serverChoices(email: string): Detected[] {
   const domain = email.split('@')[1]?.trim().toLowerCase() || 'example.com';
-  return [pick('hostinger'), pick('zoho'), pick('yahoo'), { ...genericFor(domain), label: 'Other (mail.' + domain + ')' }];
+  return [pick('hostinger'), pick('gmail'), pick('yahoo'), pick('zoho'), pick('godaddy'), pick('titan'), { ...genericFor(domain), label: 'Other (mail.' + domain + ')' }];
 }
 
 /** Public DNS-over-HTTPS services, tried in turn (some networks block one of them). */
@@ -101,23 +168,16 @@ async function lookupMx(domain: string): Promise<string> {
 }
 
 /**
- * Picks server settings from the domain's mail (MX) records. Only the domain is looked up
- * (never the address or password), through public DNS (Cloudflare, then Google).
+ * Picks server settings from the address's domain or its mail (MX) records. Only the domain is
+ * looked up (never the address or password), through public DNS (Cloudflare, then Google).
+ * Anything unknown falls back to mail.<domain>, and auto-connect tries the other usual names.
  */
 export async function detectServers(email: string): Promise<Detected> {
   const domain = email.split('@')[1]?.trim().toLowerCase() ?? '';
   if (!domain) return genericFor('example.com');
-  const mx = await lookupMx(domain);
-  if (/hostinger/.test(mx)) return pick('hostinger');
-  if (/zoho/.test(mx)) return pick('zoho');
-  if (/yahoodns/.test(mx)) return pick('yahoo');
-  if (/google|googlemail/.test(mx) || /^(gmail|googlemail)\.com$/.test(domain)) {
-    return { ...genericFor(domain), provider: 'google', label: 'Google', note: 'This address is on Google. Use “Connect Gmail / Google” instead.' };
-  }
-  if (/outlook|microsoft/.test(mx)) {
-    return { ...genericFor(domain), provider: 'microsoft', label: 'Microsoft 365', note: 'Microsoft 365 mailboxes usually block password sign-in. Ask your IT admin, or contact Aether Link.' };
-  }
-  return genericFor(domain);
+  const byDomain = presetFor(domain, '');
+  if (byDomain) return byDomain;
+  return presetFor(domain, await lookupMx(domain)) ?? genericFor(domain);
 }
 
 /* ------------------------------- the account -------------------------------- */
