@@ -86,9 +86,23 @@ async function callCloud(key: CloudKey, messages: ChatMessage[], opts: GenerateO
 }
 
 /** Saves the key after one real test request. Throws a readable message if it does not work. */
+/**
+ * Cleans what people paste: "accountid=e5d1…", "Account ID: e5d1…", "token: cfat_…", spaces or
+ * line breaks copied from a chat app. The account ID is always 32 hex characters.
+ */
+export function cleanCloudKey(accountId: string, token: string): CloudKey {
+  const id = accountId.match(/[0-9a-f]{32}/i)?.[0] ?? accountId.trim();
+  const tok = token
+    .trim()
+    .replace(/^(?:workers\s*ai\s*)?(?:api\s*)?(?:token|key)\s*[:=]\s*/i, '')
+    .replace(/\s+/g, '');
+  return { accountId: id.toLowerCase(), token: tok };
+}
+
 export async function saveCloudKey(accountId: string, token: string) {
-  const key = { accountId: accountId.trim(), token: token.trim() };
+  const key = cleanCloudKey(accountId, token);
   if (!key.accountId || !key.token) throw new Error('Enter both the account ID and the token.');
+  if (!/^[0-9a-f]{32}$/.test(key.accountId)) throw new Error('The account ID should be 32 letters and numbers (0-9, a-f). Copy it again from the Cloudflare dashboard.');
   try {
     await callCloud(key, [{ role: 'user', content: 'Reply with the single word OK.' }], { maxTokens: 5, temperature: 0 });
   } catch (e) {
