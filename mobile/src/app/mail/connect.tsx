@@ -40,9 +40,19 @@ export default function ConnectWorkEmail() {
     setAttempts([]);
     setBusy(true);
     try {
-      const s = servers ?? (await detectServers(email.trim())).settings;
+      // If the provider is still unknown (the first lookup can time out on a slow network), look it up again.
+      let s = servers;
+      if (!s || !detected || detected.provider === 'other') {
+        setStep('Finding your email provider…');
+        const d = await detectServers(email.trim());
+        if (!servers || d.provider !== 'other') {
+          setDetected(d);
+          setServers(d.settings);
+          s = d.settings;
+        }
+      }
       // Tries the chosen servers first, then every usual server name, port and login style by itself.
-      const r = await autoConnect(email.trim(), password, s, setStep);
+      const r = await autoConnect(email.trim(), password, s ?? null, setStep);
       runSync().catch(() => {});
       if (!r.canSend) {
         Alert.alert(

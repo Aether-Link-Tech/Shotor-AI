@@ -146,13 +146,15 @@ export function serverChoices(email: string): Detected[] {
 const DOH = [
   (d: string) => ({ url: `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(d)}&type=MX`, headers: { accept: 'application/dns-json' } }),
   (d: string) => ({ url: `https://dns.google/resolve?name=${encodeURIComponent(d)}&type=MX`, headers: {} }),
+  (d: string) => ({ url: `https://dns.quad9.net:5053/dns-query?name=${encodeURIComponent(d)}&type=MX`, headers: { accept: 'application/dns-json' } }),
 ];
 
 async function lookupMx(domain: string): Promise<string> {
   for (const make of DOH) {
     const { url, headers } = make(domain);
     const abort = new AbortController();
-    const timer = setTimeout(() => abort.abort(), 5000);
+    // Generous: a slow phone or network can take several seconds for the first secure connection.
+    const timer = setTimeout(() => abort.abort(), 10000);
     try {
       const r = await fetch(url, { headers, signal: abort.signal });
       const j = (await r.json()) as { Answer?: { data: string }[] };
