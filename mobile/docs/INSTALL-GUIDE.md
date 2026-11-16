@@ -47,12 +47,15 @@ Email sorting, replies and Ask AI are much faster with the online AI. Your admin
 The key is stored encrypted on this phone only. Reports, proposals and attachments always stay on the phone; only email and chat text use the online AI. Without the key, or without internet, Shotor uses the on-phone AI automatically.
 
 ## Connecting your email
-Open **Mail** and choose the button that fits your address:
+Open **Mail**, tap **Connect email**, type your email address and tap the password box. Shotor recognises your provider by itself.
 
-- **Work email** (for example `name@saibaan.org.pk`, or any company address hosted by Hostinger, cPanel, Zoho or similar): tap **Connect work email**, then type your email address and the **same password you use for webmail**. The server settings fill in automatically. Tap **Connect**.
-- **Gmail or Google Workspace** (`@gmail.com`, or a company address hosted by Google): tap **Connect Gmail / Google** and sign in with Google.
+- **Company email** (for example `name@saibaan.org.pk`, or any address hosted by Hostinger, GoDaddy, Zoho, cPanel and so on): type the **same password you use for webmail** and tap **Connect**.
+- **Gmail** (and Yahoo, iCloud, AOL): these do not accept your normal password in other apps. The screen shows three steps and a button that opens the right page:
+  1. Turn on **2-Step Verification** in your Google Account (Security).
+  2. Open **myaccount.google.com/apppasswords**, type "Shotor" and tap **Create**.
+  3. Copy the 16-letter password and paste it in Shotor's password box, then tap **Connect**.
 
-If you see **"Wrong email or password"**, log in to your webmail once to check the password. If your mail provider uses different server names, tap **Change server settings** and copy them from the provider's help page.
+If it does not connect, the screen lists what each mail server answered. **"Wrong email or password"** means the password needs checking (sign in to your webmail once). Send a screenshot of that list to support for anything else.
 
 Your password is stored encrypted on the phone and is only sent to your own mail server. Replies you send also appear in your webmail's **Sent** folder.
 

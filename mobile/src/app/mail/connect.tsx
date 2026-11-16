@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { Button, Card, Row, Screen } from '../../components/ui';
 import { MailIcon } from '../../components/Icons';
 import { detectServers, imapSupported, serverChoices, type Detected, type Security, type ServerSettings } from '../../lib/mail/imap';
 import { runSync } from '../../lib/sync';
 import { autoConnect, ConnectError, type Attempt } from '../../lib/mail/autoconnect';
+import { connectGmail, isGmailConfigured } from '../../lib/gmail/auth';
 import { colors, radius, type } from '../../theme';
 
 const SECURITY: { key: Security; label: string }[] = [
@@ -14,7 +15,35 @@ const SECURITY: { key: Security; label: string }[] = [
   { key: 'none', label: 'None' },
 ];
 
-/** Sign in to a work mailbox that is not Gmail (e.g. name@company.com on Hostinger). */
+/** Providers that refuse the normal password in other apps and need an "app password" instead. */
+const APP_PASSWORD: Record<string, { name: string; url: string; steps: string[] }> = {
+  gmail: {
+    name: 'Gmail',
+    url: 'https://myaccount.google.com/apppasswords',
+    steps: [
+      'Make sure 2-Step Verification is on (Google Account → Security).',
+      'Tap the button below, sign in, type "Shotor" as the name and tap Create.',
+      'Copy the 16-letter password Google shows and paste it in the password box here.',
+    ],
+  },
+  yahoo: {
+    name: 'Yahoo',
+    url: 'https://login.yahoo.com/account/security',
+    steps: ['Tap the button below and open "Generate app password".', 'Name it "Shotor" and copy the password.', 'Paste it in the password box here.'],
+  },
+  icloud: {
+    name: 'iCloud',
+    url: 'https://account.apple.com/account/manage',
+    steps: ['Tap the button below and open "App-Specific Passwords".', 'Create one named "Shotor" and copy it.', 'Paste it in the password box here.'],
+  },
+  aol: {
+    name: 'AOL',
+    url: 'https://login.aol.com/account/security',
+    steps: ['Tap the button below and open "Generate app password".', 'Name it "Shotor" and copy the password.', 'Paste it in the password box here.'],
+  },
+};
+
+/** Connect any email address: the provider is detected, and app-password steps are shown where needed. */
 export default function ConnectWorkEmail() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -51,8 +80,11 @@ export default function ConnectWorkEmail() {
           s = d.settings;
         }
       }
+      // App passwords are shown in groups ("abcd efgh ijkl mnop") but contain no spaces.
+      const provider = (s && detected?.provider) || '';
+      const pw = APP_PASSWORD[provider] ? password.replace(/\s+/g, '') : password;
       // Tries the chosen servers first, then every usual server name, port and login style by itself.
-      const r = await autoConnect(email.trim(), password, s ?? null, setStep);
+      const r = await autoConnect(email.trim(), pw, s ?? null, setStep);
       runSync().catch(() => {});
       if (!r.canSend) {
         Alert.alert(
@@ -80,6 +112,19 @@ export default function ConnectWorkEmail() {
     );
   }
 
+  const appPw = detected ? APP_PASSWORD[detected.provider] : undefined;
+
+  async function googleSignIn() {
+    setError('');
+    try {
+      await connectGmail();
+      runSync().catch(() => {});
+      router.back();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
   const set = (patch: Partial<ServerSettings>) => setServers((s) => ({ ...(s ?? detected!.settings), ...patch }));
 
   return (
@@ -87,10 +132,10 @@ export default function ConnectWorkEmail() {
       <Card>
         <Row>
           <MailIcon color={colors.navy} />
-          <Text style={type.h2}>Work email</Text>
+          <Text style={type.h2}>Connect your email</Text>
         </Row>
         <Text style={type.small}>
-          For company addresses that are not Gmail, such as name@company.com on Hostinger. Your password is stored encrypted on this phone and is only sent to your mail server.
+          Any address: company email (for example on Hostinger), Gmail, Yahoo and more. Your password is stored encrypted on this phone and is only sent to your own mail server.
         </Text>
         <TextInput
           style={styles.input}
@@ -111,7 +156,7 @@ export default function ConnectWorkEmail() {
         />
         <TextInput
           style={styles.input}
-          placeholder="Email password"
+          placeholder={appPw ? `${appPw.name} app password (not your normal password)` : 'Email password'}
           placeholderTextColor={colors.faint}
           value={password}
           onChangeText={setPassword}
@@ -126,7 +171,25 @@ export default function ConnectWorkEmail() {
             <Text style={type.small}>
               Server: <Text style={{ fontWeight: '700', color: colors.ink }}>{detected.label}</Text> ({servers?.imapHost})
             </Text>
-            {detected.note ? <Text style={[type.small, { color: colors.warn }]}>{detected.note}</Text> : null}
+            {appPw ? (
+              <View style={styles.appPw}>
+                <Text style={type.h3}>{appPw.name} needs an app password</Text>
+                <Text style={type.small}>{appPw.name} does not accept your normal password in other apps. Create an app password once:</Text>
+                {appPw.steps.map((st, i) => (
+                  <Text key={i} style={type.small}>
+                    {i + 1}. {st}
+                  </Text>
+                ))}
+                <Button small variant="secondary" title={`Open ${appPw.name} app passwords`} onPress={() => Linking.openURL(appPw.url)} />
+                {detected.provider === 'gmail' && isGmailConfigured() ? (
+                  <Text style={styles.link} onPress={googleSignIn}>
+                    Or sign in with Google (only for accounts your administrator added)
+                  </Text>
+                ) : null}
+              </View>
+            ) : detected.note ? (
+              <Text style={[type.small, { color: colors.warn }]}>{detected.note}</Text>
+            ) : null}
             <Text style={type.tiny}>Not right? Choose your email provider:</Text>
             <Row style={{ flexWrap: 'wrap' }}>
               {serverChoices(email).map((c) => (
@@ -228,4 +291,5 @@ const styles = StyleSheet.create({
   chipOn: { backgroundColor: colors.navy },
   chipText: { color: colors.navy, fontWeight: '600', fontSize: 13 },
   attempts: { backgroundColor: colors.bg, borderRadius: radius.md, padding: 10, gap: 3 },
+  appPw: { backgroundColor: '#E3E9F5', borderRadius: radius.md, padding: 12, gap: 6 },
 });

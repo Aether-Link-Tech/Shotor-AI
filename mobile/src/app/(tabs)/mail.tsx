@@ -77,13 +77,11 @@ export default function Mail() {
           <Text style={type.body}>
             Read your recent email offline. Shotor sorts new mail, summarises it and suggests answers; if you allow it in Settings, it also answers routine mail by itself. Replies wait in the Outbox when you are offline.
           </Text>
-          {isGmailConfigured() ? (
-            <Button title="Connect Gmail / Google" onPress={connect} disabled={!online} />
-          ) : (
-            <Text style={[type.small, { color: colors.warn }]}>Gmail is not enabled in this build. Ask your administrator to add the Google client ID.</Text>
-          )}
+          {/* One button for every kind of address; the next screen works out the provider (and explains app passwords for Gmail). */}
           {imapSupported() ? (
-            <Button title="Connect work email (Hostinger, company mail)" variant="secondary" onPress={() => router.push('/mail/connect')} disabled={!online} />
+            <Button title="Connect email" onPress={() => router.push('/mail/connect')} disabled={!online} />
+          ) : isGmailConfigured() ? (
+            <Button title="Connect Gmail / Google" onPress={connect} disabled={!online} />
           ) : null}
           {!online ? <Text style={type.small}>Connecting needs internet once.</Text> : null}
           {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
