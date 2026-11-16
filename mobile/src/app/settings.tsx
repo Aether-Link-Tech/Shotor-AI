@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import * as LocalAuthentication from 'expo-local-authentication';
 import Constants from 'expo-constants';
 import { Card, Row, Screen, SectionTitle } from '../components/ui';
-import { FromAetherLink } from '../components/Brand';
+import { FromAetherNova } from '../components/Brand';
 import { useEngine } from '../components/ModelBanner';
 import { SpeedCard } from '../components/SpeedCard';
 import { BatteryCard } from '../components/BatteryCard';
@@ -144,7 +144,7 @@ export default function Settings() {
           </View>
           <Switch value={lock} onValueChange={toggleLock} trackColor={{ true: colors.navy, false: colors.line }} />
         </Row>
-        <Text style={type.small}>Reports, chat and summaries are stored only on this phone. The AI runs offline. Only Gmail traffic uses the internet.</Text>
+        <Text style={type.small}>Everything is stored only on this phone. Reports, documents and attachments are always processed on the phone. Email syncs with your mail server, and if Online AI is on, email and chat text (with phone and bank numbers removed) go to Cloudflare to be answered faster. Privacy policy: aether-link-tech.github.io/Aether-Link/shotor-privacy.html</Text>
         <Text style={[styles.link, { color: colors.danger, marginTop: 6 }]} onPress={eraseAll}>
           Erase all data on this phone
         </Text>
@@ -152,7 +152,7 @@ export default function Settings() {
 
       <View style={{ marginTop: 24, alignItems: 'center' }}>
         <Text style={type.tiny}>Shotor AI · version {Constants.expoConfig?.version ?? '1.0.0'}</Text>
-        <FromAetherLink />
+        <FromAetherNova />
       </View>
     </Screen>
   );

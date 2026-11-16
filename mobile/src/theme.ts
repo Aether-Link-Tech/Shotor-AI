@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 
-/** Aether Link brand palette (navy taken from the company logo). */
+/** Aether Nova brand palette (navy taken from the company logo). */
 export const colors = {
   navy: '#0A1F44',
   navyDeep: '#041C42',

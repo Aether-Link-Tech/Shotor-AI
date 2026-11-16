@@ -1,6 +1,6 @@
 # Shotor AI: install guide (Android)
 
-*Shotor AI by Aether Link*
+*Shotor AI by Aether Nova*
 
 Shotor AI is your private assistant. It summarizes reports, answers questions, drafts email replies and reminds you of meetings. The AI runs **on your phone**, so your documents and messages never leave it.
 
@@ -64,4 +64,4 @@ Your password is stored encrypted on the phone and is only sent to your own mail
 - Updates: install the newer `ShotorAI-v1.x.x.apk` the same way, over the old app. Your data stays.
 - To remove everything, use **Settings → Erase all data on this phone**, or uninstall the app.
 
-Support: contact Aether Link.
+Support: contact Aether Nova (aether.link.pk@gmail.com).

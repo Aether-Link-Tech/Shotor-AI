@@ -47,7 +47,7 @@ export function SpeedCard() {
           </Text>
           <Text style={type.tiny}>Engine: {result.engine} · {result.gpuNote}</Text>
           {SLOW_ENGINES.test(result.engine) ? (
-            <Text style={{ color: colors.warn, fontSize: 13 }}>This phone is using the basic engine build. Please report this phone model to Aether Link.</Text>
+            <Text style={{ color: colors.warn, fontSize: 13 }}>This phone is using the basic engine build. Please report this phone model to Aether Nova.</Text>
           ) : null}
           {result.estimate600 > 180 && model && ['llama-3.2-3b', 'gemma-3-4b', 'qwen3-4b'].includes(model.info.id) ? (
             <Text style={{ color: colors.warn, fontSize: 13 }}>

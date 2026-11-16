@@ -15,7 +15,7 @@ import { onDownload, resumeInterruptedDownload } from '../lib/ai/models';
 import { autoTune } from '../lib/ai/engine';
 import { checkForShare, onShare } from '../lib/share';
 import { PdfHost } from '../components/PdfHost';
-import { FromAetherLink, LogoMark } from '../components/Brand';
+import { FromAetherNova, LogoMark } from '../components/Brand';
 import { Button } from '../components/ui';
 import { colors } from '../theme';
 
@@ -134,13 +134,13 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
   return (
     <View style={styles.lock}>
       <View style={styles.lockCenter}>
-        <LogoMark size={96} color={colors.white} letterColor={colors.navyDeep} />
+        <LogoMark size={170} light />
         <Text style={styles.lockTitle}>Shotor AI</Text>
         <Text style={styles.lockSub}>Private. On this phone only.</Text>
         <Button title="Unlock" onPress={unlock} variant="secondary" style={{ marginTop: 28, minWidth: 180 }} />
         {error ? <Text style={styles.lockError}>{error}</Text> : null}
       </View>
-      <FromAetherLink light />
+      <FromAetherNova light />
     </View>
   );
 }

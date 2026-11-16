@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="255 245 1030 610" width="1030" height="610" role="img" aria-label="Aether Nova logo">
+  <defs>
+    <!-- A: deep navy (top-left) to electric blue to violet (bottom-right) -->
+    <linearGradient id="an-a" x1="480" y1="300" x2="1150" y2="800" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#06123f"/>
+      <stop offset=".42" stop-color="#0a3db8"/>
+      <stop offset=".75" stop-color="#0a8cff"/>
+      <stop offset="1" stop-color="#9a1bff"/>
+    </linearGradient>
+    <!-- inner fold of the left leg -->
+    <linearGradient id="an-fold" x1="700" y1="440" x2="560" y2="630" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#020a2e"/>
+      <stop offset="1" stop-color="#0a2a8a"/>
+    </linearGradient>
+    <!-- crescent under the orbit -->
+    <linearGradient id="an-blade" x1="450" y1="700" x2="880" y2="750" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0a2a8a"/>
+      <stop offset=".6" stop-color="#0b5be6"/>
+      <stop offset="1" stop-color="#17a8ff"/>
+    </linearGradient>
+    <!-- orbit: navy tail, bright cyan core, blue, violet rim -->
+    <linearGradient id="an-orbit" x1="270" y1="800" x2="1270" y2="300" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0a1a7a"/>
+      <stop offset=".22" stop-color="#1238d8"/>
+      <stop offset=".42" stop-color="#16d2ff"/>
+      <stop offset=".6" stop-color="#1e8bff"/>
+      <stop offset=".82" stop-color="#2a3cff"/>
+      <stop offset="1" stop-color="#a21cff"/>
+    </linearGradient>
+    <radialGradient id="an-glow" cx="900" cy="540" r="140" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".9"/>
+      <stop offset=".35" stop-color="#bff4ff" stop-opacity=".5"/>
+      <stop offset="1" stop-color="#bff4ff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- A -->
+  <path fill="url(#an-a)" d="M672 292 Q707 252 742 292 L1157 793 L992 802 Q968 803 960 790 L700 432 L597 610 L397 671 Z"/>
+  <!-- dark inner fold of the left leg -->
+  <path fill="url(#an-fold)" d="M700 432 L712 458 L604 614 L498 640 Z"/>
+  <!-- crescent below the orbit -->
+  <path fill="url(#an-blade)" d="M430 712 C560 688 760 690 880 755 C835 700 790 665 720 650 L470 690 Z"/>
+
+  <!-- orbit swoosh (on top) -->
+  <path fill="url(#an-orbit)" d="M525 803
+    C430 822 300 845 274 800
+    C252 760 340 722 470 704
+    C640 668 840 612 985 565
+    C1130 495 1270 400 1268 330
+    C1266 270 1160 258 1060 275
+    C990 287 920 315 870 347
+    C960 312 1070 292 1125 305
+    C1170 316 1165 360 1120 410
+    C1070 465 1010 505 950 527
+    C820 560 640 600 470 652
+    C350 688 296 735 304 772
+    C314 812 420 812 525 803 Z"/>
+  <!-- glowing inner edge of the right loop -->
+  <path d="M880 345 C960 314 1068 294 1122 306 C1166 318 1160 362 1116 412 C1066 466 1008 505 952 527" fill="none" stroke="#7ff3ff" stroke-width="7" stroke-linecap="round" opacity=".75"/>
+  <!-- highlight where the orbit crosses the A -->
+  <ellipse cx="900" cy="540" rx="140" ry="22" transform="rotate(-18 900 540)" fill="url(#an-glow)"/>
+</svg>

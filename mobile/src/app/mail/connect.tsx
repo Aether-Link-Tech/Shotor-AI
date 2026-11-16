@@ -184,7 +184,7 @@ export default function ConnectWorkEmail() {
         {busy && step ? <Text style={type.small}>{step}</Text> : null}
         <Button title={busy ? 'Finding your mail server…' : 'Connect'} onPress={connect} loading={busy} disabled={!validEmail || !password || busy} />
       </Card>
-      <Text style={[type.tiny, { textAlign: 'center' }]}>Shotor reads your inbox and sends replies through your own mail server. Nothing goes to Aether Link.</Text>
+      <Text style={[type.tiny, { textAlign: 'center' }]}>Shotor reads your inbox and sends replies through your own mail server. Nothing goes to Aether Nova.</Text>
     </Screen>
   );
 }

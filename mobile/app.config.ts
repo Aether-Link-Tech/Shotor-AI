@@ -13,14 +13,14 @@ const NAVY = '#0A1F44';
 const config: ExpoConfig = {
   name: 'Shotor AI',
   slug: 'shotor-ai',
-  version: '1.5.3',
+  version: '1.5.4',
   orientation: 'portrait',
   icon: './assets/icon.png',
   scheme: googleScheme ? ['shotor', googleScheme] : 'shotor',
   userInterfaceStyle: 'light',
   ios: {
     bundleIdentifier: 'com.aetherlink.shotor',
-    buildNumber: '15',
+    buildNumber: '16',
     supportsTablet: true,
     deploymentTarget: '16.0',
     infoPlist: {
@@ -29,7 +29,7 @@ const config: ExpoConfig = {
   },
   android: {
     package: 'com.aetherlink.shotor',
-    versionCode: 15,
+    versionCode: 16,
     allowBackup: false, // the AI model is GBs and data is private; never back it up to the cloud
     adaptiveIcon: {
       backgroundColor: '#FFFFFF',
@@ -48,7 +48,7 @@ const config: ExpoConfig = {
     'expo-secure-store',
     [
       'expo-splash-screen',
-      { image: './assets/splash-icon.png', imageWidth: 200, backgroundColor: NAVY, resizeMode: 'contain' },
+      { image: './assets/splash-icon.png', imageWidth: 240, backgroundColor: '#FFFFFF', resizeMode: 'contain' },
     ],
     [
       'expo-calendar',

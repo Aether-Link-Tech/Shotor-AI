@@ -52,7 +52,7 @@
     "ios": "expo run:ios",
     "typecheck": "tsc --noEmit",
     "gen:pdfjs": "node scripts/gen-pdfjs.mjs",
-    "gen:icons": "node scripts/gen-icons.mjs",
+    "gen:icons": "python scripts/gen-icons.py",
     "prebuild": "expo prebuild --clean",
     "build:apk": "expo prebuild --platform android --clean && cd android && gradlew assembleRelease",
     "test": "jest"

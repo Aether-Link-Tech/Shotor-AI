@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Shotor AI Assistant, built by Aether Link for a client's CEO and managers. The repo has two generations:
+Shotor AI Assistant, built by Aether Nova (formerly Aether Link) for a client's CEO and managers. The repo has two generations:
 
 - **`mobile/` (current product):** an offline, on-device Expo / React Native app for Android and iPhone. It has no server: the AI runs on the phone through `llama.rn` (llama.cpp, GGUF models), and data lives in `expo-sqlite`. It is distributed outside the app stores (APK sideload; iOS via Ad Hoc/TestFlight). See [mobile/README.md](mobile/README.md) and `mobile/AGENTS.md`.
 - **`backend/` + `frontend/` + `android/` (original, server-based):** FastAPI with Ollama, a web UI, and a Kotlin client. Kept for reference. The rest of this file describes it.

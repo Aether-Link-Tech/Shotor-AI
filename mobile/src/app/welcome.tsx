@@ -6,7 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as LocalAuthentication from 'expo-local-authentication';
 import NetInfo from '@react-native-community/netinfo';
-import { FromAetherLink, LogoMark } from '../components/Brand';
+import { FromAetherNova, LogoMark } from '../components/Brand';
 import { Button } from '../components/ui';
 import { getSetting, setSetting, useLive } from '../lib/db';
 import { calendarPermission } from '../lib/calendar';
@@ -96,7 +96,7 @@ export default function Welcome() {
       <StatusBar style="light" />
       <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.hero}>
-          <LogoMark size={84} color={colors.white} letterColor={colors.navyDeep} />
+          <LogoMark size={150} light />
           <Text style={styles.title}>Welcome to Shotor AI</Text>
           <Text style={styles.subtitle}>Your private assistant. It runs on this phone. Your reports, mail and chats never leave it.</Text>
         </View>
@@ -161,7 +161,7 @@ export default function Welcome() {
 
         <Button title="Start using Shotor" onPress={finish} variant="secondary" style={{ marginTop: 8 }} />
         <Text style={[styles.note, { textAlign: 'center' }]}>Gmail can be connected later from the Mail tab.</Text>
-        <FromAetherLink light />
+        <FromAetherNova light />
       </KeyboardAwareScrollView>
     </SafeAreaView>
   );

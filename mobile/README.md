@@ -27,7 +27,7 @@ Code map:
 - `src/lib/ai/`: model catalog/download, inference engine and prompts
 - `src/lib/gmail/`: sign-in, sync and outbox
 - `src/lib/db.ts`: database
-- `src/components/Brand.tsx`: the Aether Link logo as SVG
+- `src/components/Brand.tsx`: the Aether Nova logo as SVG
 
 ## Requirements
 - Node.js 20+ (24 LTS tested)
@@ -126,7 +126,7 @@ Pick one in **Settings → AI model**. Models download from Hugging Face over Wi
 npm run typecheck
 npx expo run:android          # dev build on a device/emulator (Expo Go is not supported: native modules)
 npm run gen:pdfjs             # after upgrading pdfjs-dist
-npm install --no-save sharp && npm run gen:icons   # after changing the logo
+npm run gen:icons   # after changing the logo
 ```
 
 ## Security notes

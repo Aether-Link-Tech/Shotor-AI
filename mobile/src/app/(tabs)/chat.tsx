@@ -113,7 +113,7 @@ export default function Chat() {
             </View>
           ) : (
             <View style={styles.aiRow}>
-              <LogoMark size={26} />
+              <LogoMark size={34} />
               <View style={styles.aiBubble}>
                 <Markdown text={item.content} />
               </View>

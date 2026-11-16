@@ -109,7 +109,7 @@ const PRESETS: Record<string, Preset> = {
     smtpHost: 'smtp.office365.com',
     smtpPort: 587,
     smtpSecurity: 'starttls',
-    note: 'Microsoft (Outlook, Hotmail, Microsoft 365) has switched off password sign-in for other apps, so this may be refused. A “Sign in with Microsoft” option is planned; contact Aether Link.',
+    note: 'Microsoft (Outlook, Hotmail, Microsoft 365) has switched off password sign-in for other apps, so this may be refused. A “Sign in with Microsoft” option is planned; contact Aether Nova.',
   },
 };
 
